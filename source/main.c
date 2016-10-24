@@ -10,7 +10,7 @@
 #include <3ds.h>
 #include <stdio.h>
 
-#define BUFFER_SIZE 64 * 1024 * 1024
+#define BUFFER_SIZE 1131072
 
 int playWav(const char *wav);
 
@@ -24,7 +24,7 @@ int main()
 	if(R_FAILED(csndInit()))
 	{
 		printf("Error %d: Could not initialize CSND.", __LINE__);
-		goto err;
+		goto out;
 	}
 	else
 		puts("CSND initialized.");
@@ -80,10 +80,6 @@ out:
 	csndExit();
 	gfxExit();
 	return 0;
-
-err:
-	puts("An error occurred. Exiting in 5 seconds.");
-	goto out;
 }
 
 /**
@@ -109,8 +105,8 @@ int playWav(const char *wav)
 	fseek(file, 0, SEEK_SET);
 
 	printf("Got to line %d. Size: %d\n", __LINE__, size);
-	if(size > 1131072)
-		size = 1131072;
+	if(size > BUFFER_SIZE)
+		size = BUFFER_SIZE;
 
 	printf("Got to line %d\n", __LINE__);
 	buffer = linearAlloc(size);
