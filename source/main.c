@@ -124,17 +124,12 @@ int playWav(const char *wav)
 			csndIsPlaying(8, &status);
 
 		printf("Got to line %d. Read %d bytes\n", __LINE__, bytesRead);
+
 		if(csndPlaySound(8, SOUND_FORMAT_16BIT | SOUND_ONE_SHOT, 48000, 1, 0,
 					buffer, buffer, size) != 0)
 		{
 			printf("Error %d.\n", __LINE__);
 		}
-
-		printf("Line %d: status: %d", __LINE__, status);
-
-		printf("Got to line %d\n", __LINE__);
-
-
 	}
 
 	printf("Got to line %d\n", __LINE__);
