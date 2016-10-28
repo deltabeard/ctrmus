@@ -4,7 +4,7 @@
  *
  * This program comes with ABSOLUTELY NO WARRANTY and is free software. You are
  * welcome to redistribute it under certain conditions; for details see the
- * LICENCE file.
+ * LICENSE file.
  */
 
 #include <3ds.h>
@@ -12,41 +12,42 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BUFFER_SIZE 1 * 1024 * 1024
-#define AUDIO_FOLDER "sdmc:/audio/"
+#include "main.h"
 
-int playWav(const char *wav);
+#define BUFFER_SIZE 128 * 1024
+#define AUDIO_FOLDER "sdmc:/audio/"
 
 int main()
 {
 	DIR *dp;
 	struct dirent *ep;
 	u8 fileMax = 0;
-	u8 fileNum = 0;
+	u8 fileNum = 1;
 
 	gfxInitDefault();
 	consoleInit(GFX_BOTTOM, NULL);
-
-	puts("Initializing CSND...");
 
 	if(R_FAILED(csndInit()))
 	{
 		printf("Error %d: Could not initialize CSND.", __LINE__);
 		goto out;
 	}
-	else
-		puts("CSND initialized.");
 
-	dp = opendir("sdmc:/audio/");
-	if (dp != NULL)
+	puts("Scanning audio directory.");
+
+	dp = opendir(AUDIO_FOLDER);
+	if(dp != NULL)
 	{
-		while(ep = readdir(dp))
+		while((ep = readdir(dp)) != NULL)
 			printf("%d: %s\n", ++fileMax, ep->d_name);
 
 		(void)closedir(dp);
 	}
 	else
+	{
 		puts("Couldn't open the directory");
+		goto out;
+	}
 
 	if(fileMax == 0)
 	{
@@ -57,7 +58,6 @@ int main()
 	while(aptMainLoop())
 	{
 		u32 kDown;
-		u8 ret;
 		char file[128]; //TODO: Make this dynamic.
 
 		hidScanInput();
@@ -79,14 +79,14 @@ int main()
 			printf("Selected file %d\n", fileNum);
 		}
 
-		if(kDown & KEY_X)
+		if(kDown & KEY_A)
 		{
 			u8 audioFileNum = 0;
 
 			dp = opendir(AUDIO_FOLDER);
 			if (dp != NULL)
 			{
-				while(ep = readdir(dp))
+				while((ep = readdir(dp)) != NULL)
 				{
 					audioFileNum++;
 					if(audioFileNum == fileNum)
@@ -95,27 +95,7 @@ int main()
 				(void)closedir(dp);
 				snprintf(file, sizeof(file), "%s%s", AUDIO_FOLDER, ep->d_name);
 			}
-			printf("Opening file %s\n", file);
-			playWav(file); // No error checking. Terribad.
-		}
-
-		if(kDown & KEY_A && (ret = playWav("sdmc:/audio/audio.wav") != 0))
-		{
-			printf("Error ");
-			switch(ret)
-			{
-				case 1:
-					printf("%d: Audio file missing.\n", __LINE__);
-					break;
-
-				case 2:
-					printf("%d: \"csnd\" init failed.\n", __LINE__);
-					break;
-
-				default:
-					printf("%d: Unknown.\n", __LINE__);
-					break;
-			}
+			playWav(file);
 		}
 
 		gfxFlushBuffers();
@@ -138,39 +118,119 @@ out:
  */
 int playWav(const char *wav)
 {
-	FILE *file		= fopen(wav, "rb");
-	u8* buffer1;
-	u8* buffer2;
-	off_t bytesRead1;
-	off_t bytesRead2;
-	off_t size;
-	u8 chunk = 0;
-
-	printf("Got to line %d\n", __LINE__);
+	FILE	*file	= fopen(wav, "rb");
+	char	header[45];
+	u32		sample;
+	u8		format;
+	u8		channels;
+	u32		bitness;
+	u8*		buffer;
+	u8*		left1 = NULL;
+	u8*		left2 = NULL;
+	u8*		right1 = NULL;
+	u8*		right2 = NULL;
+	off_t	bytesRead1;
+	off_t	bytesRead2;
+	off_t	size;
 
 	if(file == NULL)
+	{
+		puts("Opening file failed.");
 		return 1;
+	}
 
 	fseek(file, 0, SEEK_END);
 	size = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	printf("Got to line %d. Size: %d\n", __LINE__, size);
 	if(size > BUFFER_SIZE)
 		size = BUFFER_SIZE;
 
-	printf("Got to line %d\n", __LINE__);
+	buffer = linearAlloc(size);
 
-	buffer1 = linearAlloc(size);
-	buffer2 = linearAlloc(size);
+	if(fread(header, 1, 44, file) == 0)
+	{
+		puts("Unable to read WAV file.");
+		goto out;
+	}
 
-	printf("Got to line %d. Size: %d\n", __LINE__, size);
+	if(strncmp(header + 8, "WAVE", 4) == 0)
+		puts("Valid WAV file.");
+	else
+	{
+		puts("Invalid WAV file.");
+		goto out;
+	}
 
-	while((bytesRead1 = fread(buffer1, 1, size, file)) > 0)
+	/**
+	 * http://www.topherlee.com/software/pcm-tut-wavformat.html and
+	 * http://soundfile.sapp.org/doc/WaveFormat/ helped a lot.
+	 */
+	format = (header[19]<<8) + (header[20]);
+	channels = (header[23]<<8) + (header[22]);
+	sample = (header[27]<<24) + (header[26]<<16) + (header[25]<<8) +
+		(header[24]);
+	bitness = (header[35]<<8) + (header[34]);
+	printf("Format: %s, Ch: %d, Sam: %lu, bit: %lu\n",
+			format == 1 ? "PCM" : "Other", channels, sample, bitness);
+
+	/* Prepare for stereo playing */
+	if(channels == 2)
+	{
+		right1 = linearAlloc(size/2);
+		right2 = linearAlloc(size/2);
+		left1 = linearAlloc(size/2);
+		left2 = linearAlloc(size/2);
+	}
+	else if(channels > 2)
+	{
+		puts("Unsupported number of channels.");
+		goto out;
+	}
+
+	switch(bitness)
+	{
+		case 8:
+			bitness = SOUND_FORMAT_8BIT;
+			break;
+
+		case 16:
+			bitness = SOUND_FORMAT_16BIT;
+			break;
+
+		default:
+			printf("Bitness of %lu unsupported.\n", bitness);
+			goto out;
+	}
+
+	printf("Playing %s\n", wav);
+
+	while((bytesRead1 = fread(buffer, 1, size, file)) > 0)
 	{
 		u8 status = 1;
 
-		printf("Chunk %d", ++chunk);
+		for(int i = 0, leftLoc = 0, rightLoc = 0; i < bytesRead1 && channels == 2; i++)
+		{
+			if(i%2 == 0)
+			{
+				left1[leftLoc++] = buffer[i];
+			}
+			else
+			{
+				right1[rightLoc++] = buffer[i];
+			}
+
+			printf("\rBuffering %d", i);
+		}
+
+		if(R_FAILED(GSPGPU_FlushDataCache(buffer, size)))
+			puts("Flush failed.");
+
+		if(R_FAILED(GSPGPU_FlushDataCache(left1, size/2)))
+			puts("Flush failed.");
+
+		if(R_FAILED(GSPGPU_FlushDataCache(right1, size/2)))
+			puts("Flush failed.");
 
 		while(status != 0)
 		{
@@ -185,19 +245,45 @@ int playWav(const char *wav)
 				goto out;
 		}
 
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer1, size)))
-			puts("Flush failed.");
-
-		if(csndPlaySound(8, SOUND_FORMAT_16BIT | SOUND_ONE_SHOT, 48000, 1, 0,
-					buffer1, NULL, bytesRead1) != 0)
+		if(channels == 2)
+		{
+			csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, -1,
+					left1, NULL, bytesRead1 / 2);
+			csndPlaySound(9, bitness | SOUND_ONE_SHOT, sample, 1, 1,
+					right1, NULL, bytesRead1 / 2);
+		}
+		else if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, 0,
+					buffer, NULL, bytesRead1) != 0)
 		{
 			printf("Error %d.\n", __LINE__);
 			goto out;
 		}
 
-		bytesRead2 = fread(buffer2, 1, size, file);
+		bytesRead2 = fread(buffer, 1, size, file);
 
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer2, size)))
+		printf("Size of buffer: %d", size);
+
+		for(int i = 0, leftLoc = 0, rightLoc = 0;
+				i < bytesRead2 && channels > 1; i++)
+		{
+			if(i%2== 0)
+			{
+				left2[leftLoc++] = buffer[i];
+			}
+			else
+			{
+				right2[rightLoc++] = buffer[i];
+			}
+			printf("\rBuffering %d", i);
+		}
+
+		if(R_FAILED(GSPGPU_FlushDataCache(buffer, size)))
+			puts("Flush failed.");
+
+		if(R_FAILED(GSPGPU_FlushDataCache(left2, size/2)))
+			puts("Flush failed.");
+
+		if(R_FAILED(GSPGPU_FlushDataCache(right2, size/2)))
 			puts("Flush failed.");
 
 		status = 1;
@@ -218,10 +304,15 @@ int playWav(const char *wav)
 		if(bytesRead2 == 0)
 			goto out;
 
-		printf("Chunk %d", ++chunk);
-
-		if(csndPlaySound(8, SOUND_FORMAT_16BIT | SOUND_ONE_SHOT, 48000, 1, 0,
-					buffer2, NULL, bytesRead2) != 0)
+		if(channels == 2)
+		{
+			csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, -1,
+					left2, NULL, bytesRead2 / 2);
+			csndPlaySound(9, bitness | SOUND_ONE_SHOT, sample, 1, 1,
+					right2, NULL, bytesRead2 / 2);
+		}
+		else if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, 0,
+					buffer, NULL, bytesRead2) != 0)
 		{
 			printf("Error %d.\n", __LINE__);
 			goto out;
@@ -229,14 +320,19 @@ int playWav(const char *wav)
 	}
 
 out:
-	printf("Got to line %d\n", __LINE__);
+	puts("Stopping playback.");
+
 	csndExecCmds(true);
 	CSND_SetPlayState(8, 0);
+	CSND_SetPlayState(9, 0);
 	if(R_FAILED(CSND_UpdateInfo(0)))
 		printf("Failed to stop audio playback.\n");
 
 	fclose(file);
-	linearFree(buffer1);
-	linearFree(buffer2);
+	linearFree(buffer);
+	linearFree(left1);
+	linearFree(left2);
+	linearFree(right1);
+	linearFree(right2);
 	return 0;
 }
