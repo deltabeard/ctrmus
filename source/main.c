@@ -14,7 +14,7 @@
 
 #include "main.h"
 
-#define BUFFER_SIZE 128 * 1024
+#define BUFFER_SIZE 1 * 1024 * 1024
 #define AUDIO_FOLDER "sdmc:/audio/"
 
 int main()
@@ -124,11 +124,8 @@ int playWav(const char *wav)
 	u8		format;
 	u8		channels;
 	u32		bitness;
-	u8*		buffer;
-	u8*		left1 = NULL;
-	u8*		left2 = NULL;
-	u8*		right1 = NULL;
-	u8*		right2 = NULL;
+	u8*		buffer1;
+	u8*		buffer2;
 	off_t	bytesRead1;
 	off_t	bytesRead2;
 	off_t	size;
@@ -146,7 +143,8 @@ int playWav(const char *wav)
 	if(size > BUFFER_SIZE)
 		size = BUFFER_SIZE;
 
-	buffer = linearAlloc(size);
+	buffer1 = linearAlloc(size);
+	buffer2 = linearAlloc(size);
 
 	if(fread(header, 1, 44, file) == 0)
 	{
@@ -174,20 +172,6 @@ int playWav(const char *wav)
 	printf("Format: %s, Ch: %d, Sam: %lu, bit: %lu\n",
 			format == 1 ? "PCM" : "Other", channels, sample, bitness);
 
-	/* Prepare for stereo playing */
-	if(channels == 2)
-	{
-		right1 = linearAlloc(size/2);
-		right2 = linearAlloc(size/2);
-		left1 = linearAlloc(size/2);
-		left2 = linearAlloc(size/2);
-	}
-	else if(channels > 2)
-	{
-		puts("Unsupported number of channels.");
-		goto out;
-	}
-
 	switch(bitness)
 	{
 		case 8:
@@ -205,31 +189,11 @@ int playWav(const char *wav)
 
 	printf("Playing %s\n", wav);
 
-	while((bytesRead1 = fread(buffer, 1, size, file)) > 0)
+	while((bytesRead1 = fread(buffer1, 1, size, file)) > 0)
 	{
 		u8 status = 1;
 
-		for(int i = 0, leftLoc = 0, rightLoc = 0; i < bytesRead1 && channels == 2; i++)
-		{
-			if(i%2 == 0)
-			{
-				left1[leftLoc++] = buffer[i];
-			}
-			else
-			{
-				right1[rightLoc++] = buffer[i];
-			}
-
-			printf("\rBuffering %d", i);
-		}
-
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer, size)))
-			puts("Flush failed.");
-
-		if(R_FAILED(GSPGPU_FlushDataCache(left1, size/2)))
-			puts("Flush failed.");
-
-		if(R_FAILED(GSPGPU_FlushDataCache(right1, size/2)))
+		if(R_FAILED(GSPGPU_FlushDataCache(buffer1, size)))
 			puts("Flush failed.");
 
 		while(status != 0)
@@ -245,45 +209,16 @@ int playWav(const char *wav)
 				goto out;
 		}
 
-		if(channels == 2)
-		{
-			csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, -1,
-					left1, NULL, bytesRead1 / 2);
-			csndPlaySound(9, bitness | SOUND_ONE_SHOT, sample, 1, 1,
-					right1, NULL, bytesRead1 / 2);
-		}
-		else if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, 0,
-					buffer, NULL, bytesRead1) != 0)
+		if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample * channels, 1, 0,
+					buffer1, NULL, bytesRead1) != 0)
 		{
 			printf("Error %d.\n", __LINE__);
 			goto out;
 		}
 
-		bytesRead2 = fread(buffer, 1, size, file);
+		bytesRead2 = fread(buffer2, 1, size, file);
 
-		printf("Size of buffer: %d", size);
-
-		for(int i = 0, leftLoc = 0, rightLoc = 0;
-				i < bytesRead2 && channels > 1; i++)
-		{
-			if(i%2== 0)
-			{
-				left2[leftLoc++] = buffer[i];
-			}
-			else
-			{
-				right2[rightLoc++] = buffer[i];
-			}
-			printf("\rBuffering %d", i);
-		}
-
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer, size)))
-			puts("Flush failed.");
-
-		if(R_FAILED(GSPGPU_FlushDataCache(left2, size/2)))
-			puts("Flush failed.");
-
-		if(R_FAILED(GSPGPU_FlushDataCache(right2, size/2)))
+		if(R_FAILED(GSPGPU_FlushDataCache(buffer2, size)))
 			puts("Flush failed.");
 
 		status = 1;
@@ -304,15 +239,8 @@ int playWav(const char *wav)
 		if(bytesRead2 == 0)
 			goto out;
 
-		if(channels == 2)
-		{
-			csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, -1,
-					left2, NULL, bytesRead2 / 2);
-			csndPlaySound(9, bitness | SOUND_ONE_SHOT, sample, 1, 1,
-					right2, NULL, bytesRead2 / 2);
-		}
-		else if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample, 1, 0,
-					buffer, NULL, bytesRead2) != 0)
+		if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample * channels, 1, 0,
+					buffer2, NULL, bytesRead2) != 0)
 		{
 			printf("Error %d.\n", __LINE__);
 			goto out;
@@ -324,15 +252,11 @@ out:
 
 	csndExecCmds(true);
 	CSND_SetPlayState(8, 0);
-	CSND_SetPlayState(9, 0);
 	if(R_FAILED(CSND_UpdateInfo(0)))
 		printf("Failed to stop audio playback.\n");
 
 	fclose(file);
-	linearFree(buffer);
-	linearFree(left1);
-	linearFree(left2);
-	linearFree(right1);
-	linearFree(right2);
+	linearFree(buffer1);
+	linearFree(buffer2);
 	return 0;
 }
