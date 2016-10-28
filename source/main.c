@@ -15,7 +15,7 @@
 #include "main.h"
 
 #define BUFFER_SIZE 1 * 1024 * 1024
-#define AUDIO_FOLDER "sdmc:/audio/"
+#define AUDIO_FOLDER "sdmc:/MUSIC/"
 
 int main()
 {
@@ -70,13 +70,13 @@ int main()
 		if(kDown & KEY_UP && fileNum < fileMax)
 		{
 			fileNum++;
-			printf("Selected file %d\n", fileNum);
+			printf("\rSelected file %d   ", fileNum);
 		}
 
 		if(kDown & KEY_DOWN && fileNum > 1)
 		{
 			fileNum--;
-			printf("Selected file %d\n", fileNum);
+			printf("\rSelected file %d   ", fileNum);
 		}
 
 		if(kDown & KEY_A)
@@ -169,14 +169,19 @@ int playWav(const char *wav)
 	sample = (header[27]<<24) + (header[26]<<16) + (header[25]<<8) +
 		(header[24]);
 	bitness = (header[35]<<8) + (header[34]);
-	printf("Format: %s, Ch: %d, Sam: %lu, bit: %lu\n",
-			format == 1 ? "PCM" : "Other", channels, sample, bitness);
+	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %lu\n",
+			format == 1 ? "PCM" : "Other", format, channels, sample, bitness);
 
+	/**
+	 * Playing ADPCM, and 8 bit WAV files are disabled as they both sound like
+	 * complete garbage.
+	 */
 	switch(bitness)
 	{
 		case 8:
 			bitness = SOUND_FORMAT_8BIT;
-			break;
+			puts("8bit playback disabled.");
+			goto out;
 
 		case 16:
 			bitness = SOUND_FORMAT_16BIT;
