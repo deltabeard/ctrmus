@@ -16,6 +16,7 @@
 
 #define BUFFER_SIZE 1 * 1024 * 1024
 #define AUDIO_FOLDER "sdmc:/MUSIC/"
+#define CHANNEL 8
 
 int main()
 {
@@ -27,9 +28,9 @@ int main()
 	gfxInitDefault();
 	consoleInit(GFX_BOTTOM, NULL);
 
-	if(R_FAILED(csndInit()))
+	if(R_FAILED(ndspInit()))
 	{
-		printf("Error %d: Could not initialize CSND.", __LINE__);
+		printf("Error %d: Could not initialize ndsp.", __LINE__);
 		goto out;
 	}
 
@@ -54,6 +55,9 @@ int main()
 		puts("Error: No files in audio folder.");
 		goto out;
 	}
+
+	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+	ndspSetOutputCount(1);
 
 	while(aptMainLoop())
 	{
@@ -105,7 +109,7 @@ int main()
 out:
 	puts("Exiting...");
 
-	csndExit();
+	ndspExit();
 	gfxExit();
 	return 0;
 }
@@ -129,6 +133,7 @@ int playWav(const char *wav)
 	off_t	bytesRead1;
 	off_t	bytesRead2;
 	off_t	size;
+	ndspWaveBuf waveBuf;
 
 	if(file == NULL)
 	{
@@ -172,6 +177,12 @@ int playWav(const char *wav)
 	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %lu\n",
 			format == 1 ? "PCM" : "Other", format, channels, sample, bitness);
 
+	if(channels > 2)
+	{
+		puts("Error: Invalid number of channels.");
+		goto out;
+	}
+
 	/**
 	 * Playing ADPCM, and 8 bit WAV files are disabled as they both sound like
 	 * complete garbage.
@@ -179,18 +190,26 @@ int playWav(const char *wav)
 	switch(bitness)
 	{
 		case 8:
-			bitness = SOUND_FORMAT_8BIT;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM8 : NDSP_FORMAT_MONO_PCM8;
 			puts("8bit playback disabled.");
 			goto out;
 
 		case 16:
-			bitness = SOUND_FORMAT_16BIT;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
 			break;
 
 		default:
 			printf("Bitness of %lu unsupported.\n", bitness);
 			goto out;
 	}
+
+	ndspChnReset(CHANNEL);
+	ndspChnSetInterp(CHANNEL, NDSP_INTERP_NONE);
+	ndspChnSetRate(CHANNEL, sample);
+	ndspChnSetFormat(CHANNEL, bitness);
+	memset(&waveBuf, 0, sizeof(ndspWaveBuf));
+	waveBuf.data_vaddr = buffer1;
+	waveBuf.status = NDSP_WBUF_FREE;
 
 	printf("Playing %s\n", wav);
 
@@ -201,11 +220,9 @@ int playWav(const char *wav)
 		if(R_FAILED(GSPGPU_FlushDataCache(buffer1, size)))
 			puts("Flush failed.");
 
-		while(status != 0)
+		while(ndspChnIsPlaying(8))
 		{
 			u32 kDown;
-
-			csndIsPlaying(8, &status);
 
 			hidScanInput();
 			kDown = hidKeysDown();
@@ -214,12 +231,7 @@ int playWav(const char *wav)
 				goto out;
 		}
 
-		if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample * channels, 1, 0,
-					buffer1, NULL, bytesRead1) != 0)
-		{
-			printf("Error %d.\n", __LINE__);
-			goto out;
-		}
+		ndspChnWaveBufAdd(CHANNEL, &waveBuf);
 
 		bytesRead2 = fread(buffer2, 1, size, file);
 
