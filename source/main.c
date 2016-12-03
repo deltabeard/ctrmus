@@ -253,7 +253,8 @@ int playWav(const char *wav)
 	fread(buffer2, 1, buffer_size, file);
 	ndspChnReset(CHANNEL);
 	ndspChnWaveBufClear(CHANNEL);
-	ndspChnSetInterp(CHANNEL, NDSP_INTERP_LINEAR);
+	/* Polyphase sounds much better than linear or no interpolation */
+	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, sample);
 	ndspChnSetFormat(CHANNEL, bitness);
 
