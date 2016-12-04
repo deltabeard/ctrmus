@@ -168,6 +168,7 @@ int playWav(const char *wav)
 	off_t	buffer_size;
 	ndspWaveBuf waveBuf[2];
 	bool playing = true;
+	bool lastbuf = false;
 
 	if(R_FAILED(ndspInit()))
 	{
@@ -182,20 +183,6 @@ int playWav(const char *wav)
 		err_print("Opening file failed.");
 		goto out;
 	}
-
-	if(fseek(file, 0, SEEK_END) != 0)
-		err_print("fseek failure.");
-
-	size = ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	if(size > BUFFER_SIZE)
-		buffer_size = BUFFER_SIZE;
-	else
-		buffer_size = size;
-
-	buffer1 = (u32*) linearAlloc(buffer_size);
-	buffer2 = (u32*) linearAlloc(buffer_size);
 
 	if(fread(header, 1, 44, file) == 0)
 	{
@@ -253,26 +240,28 @@ int playWav(const char *wav)
 			goto out;
 	}
 
-	/* TODO: Use return value of fread to get number of samples.
-	 * TODO: Move all of this in the while loop.
-	 */
-	fread(buffer1, 1, buffer_size, file);
-	fread(buffer2, 1, buffer_size, file);
 	ndspChnReset(CHANNEL);
 	ndspChnWaveBufClear(CHANNEL);
 	/* Polyphase sounds much better than linear or no interpolation */
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, sample);
 	ndspChnSetFormat(CHANNEL, bitness);
-
 	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples = buffer_size / blockalign;
+
+	/* TODO: Use return value of fread to get number of samples.
+	 * TODO: Move all of this in the while loop.
+	 */
+	buffer1 = (u32*) linearAlloc(sample);
+	buffer2 = (u32*) linearAlloc(sample);
+
+	fread(buffer1, 1, sample, file);
+	fread(buffer2, 1, sample, file);
+	waveBuf[0].nsamples = sample / blockalign;
 	waveBuf[0].data_vaddr = &buffer1[0];
-	waveBuf[1].nsamples = buffer_size / blockalign;
+	waveBuf[1].nsamples = sample / blockalign;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-	DSP_FlushDataCache(buffer1, buffer_size);
 
 	printf("Playing %s\n", wav);
 
@@ -306,20 +295,41 @@ int playWav(const char *wav)
 					buffer_size / bitness);
 		}
 
-		if(playing == false)
+		if(playing == false || lastbuf == true)
 			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			fread(buffer1, 1, buffer_size, file);
+			size_t read = fread(buffer1, 1, sample, file);
+
+			if(read == 0)
+			{
+				lastbuf = true;
+				continue;
+			}
+			else if(read < sample)
+				waveBuf[0].nsamples = read / blockalign;
+
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
 
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			fread(buffer2, 1, buffer_size, file);
+			size_t read = fread(buffer2, 1, sample, file);
+
+			if(read == 0)
+			{
+				lastbuf = true;
+				continue;
+			}
+			else if(read < sample)
+				waveBuf[1].nsamples = read / blockalign;
+
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
+
+		DSP_FlushDataCache(buffer1, sample);
+		DSP_FlushDataCache(buffer2, sample);
 
 		// TODO: Remove this printf.
 		printf("\rBuf0: %s, Buf1: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing",
