@@ -9,29 +9,43 @@
 
 #include <3ds.h>
 #include <dirent.h>
+#include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "main.h"
 
-#define BUFFER_SIZE 1 * 1024 * 1024
+#define BUFFER_SIZE 16 * 1024
 #define AUDIO_FOLDER "sdmc:/MUSIC/"
+#define CHANNEL 0x08
 
-int main()
+/* Adds extra debugging text */
+#define DEBUG 0
+
+/* From: http://stackoverflow.com/a/1644898 */
+#define debug_print(fmt, ...) \
+	do { if (DEBUG) fprintf(stderr, "%d:%s(): " fmt, __LINE__,\
+			__func__, __VA_ARGS__); } while (0)
+
+#define err_print(err) \
+	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
+			err, strerror(errno)); } while (0)
+
+int main(int argc, char **argv)
 {
-	DIR *dp;
-	struct dirent *ep;
+	DIR				*dp;
+	struct dirent	*ep;
+	PrintConsole	topScreen;
+	PrintConsole	bottomScreen;
 	u8 fileMax = 0;
 	u8 fileNum = 1;
 
 	gfxInitDefault();
-	consoleInit(GFX_BOTTOM, NULL);
-
-	if(R_FAILED(csndInit()))
-	{
-		printf("Error %d: Could not initialize CSND.", __LINE__);
-		goto out;
-	}
+	consoleInit(GFX_TOP, &topScreen);
+	consoleInit(GFX_BOTTOM, &bottomScreen);
+	consoleSelect(&topScreen);
 
 	puts("Scanning audio directory.");
 
@@ -41,27 +55,40 @@ int main()
 		while((ep = readdir(dp)) != NULL)
 			printf("%d: %s\n", ++fileMax, ep->d_name);
 
-		(void)closedir(dp);
+		if(closedir(dp) != 0)
+			err_print("Closing directory failed.");
 	}
 	else
 	{
-		puts("Couldn't open the directory");
+		err_print("Opening directory failed.");
 		goto out;
 	}
 
 	if(fileMax == 0)
 	{
-		puts("Error: No files in audio folder.");
+		err_print("No files in audio folder.");
 		goto out;
 	}
+
+	consoleSelect(&bottomScreen);
+
+	/**
+	 * This allows for music to continue playing through the headphones whilst
+	 * the 3DS is closed.
+	 */
+	aptSetSleepAllowed(false);
 
 	while(aptMainLoop())
 	{
 		u32 kDown;
-		char file[128]; //TODO: Make this dynamic.
+		char* file = NULL;
 
 		hidScanInput();
+
+		gfxSwapBuffers();
+		gfxFlushBuffers();
 		gspWaitForVBlank();
+
 		kDown = hidKeysDown();
 
 		if(kDown & KEY_START)
@@ -79,11 +106,11 @@ int main()
 			printf("\rSelected file %d   ", fileNum);
 		}
 
-		if(kDown & KEY_A)
+		if(kDown & (KEY_A | KEY_R))
 		{
 			u8 audioFileNum = 0;
-
 			dp = opendir(AUDIO_FOLDER);
+
 			if (dp != NULL)
 			{
 				while((ep = readdir(dp)) != NULL)
@@ -92,20 +119,29 @@ int main()
 					if(audioFileNum == fileNum)
 						break;
 				}
-				(void)closedir(dp);
-				snprintf(file, sizeof(file), "%s%s", AUDIO_FOLDER, ep->d_name);
-			}
-			playWav(file);
-		}
 
-		gfxFlushBuffers();
-		gfxSwapBuffers();
+				if(closedir(dp) != 0)
+					err_print("Closing directory failed.");
+
+				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
+				{
+					err_print("Constructing file name failed.");
+					file = NULL;
+				}
+			}
+
+			if(file == NULL)
+				err_print("Opening file failed.");
+			else
+				playWav(file);
+
+			free(file);
+		}
 	}
 
 out:
 	puts("Exiting...");
 
-	csndExit();
 	gfxExit();
 	return 0;
 }
@@ -123,32 +159,47 @@ int playWav(const char *wav)
 	u32		sample;
 	u8		format;
 	u8		channels;
-	u32		bitness;
-	u8*		buffer1;
-	u8*		buffer2;
-	off_t	bytesRead1;
-	off_t	bytesRead2;
+	u8		bitness;
+	u32		byterate; // TODO: Not used.
+	u32		blockalign;
+	u32*	buffer1 = NULL;
+	u32*	buffer2 = NULL;
 	off_t	size;
+	off_t	buffer_size;
+	ndspWaveBuf waveBuf[2];
+	bool playing = true;
+
+	if(R_FAILED(ndspInit()))
+	{
+		err_print("Initialising ndsp failed.");
+		goto out;
+	}
+
+	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 
 	if(file == NULL)
 	{
-		puts("Opening file failed.");
-		return 1;
+		err_print("Opening file failed.");
+		goto out;
 	}
 
-	fseek(file, 0, SEEK_END);
+	if(fseek(file, 0, SEEK_END) != 0)
+		err_print("fseek failure.");
+
 	size = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
 	if(size > BUFFER_SIZE)
-		size = BUFFER_SIZE;
+		buffer_size = BUFFER_SIZE;
+	else
+		buffer_size = size;
 
-	buffer1 = linearAlloc(size);
-	buffer2 = linearAlloc(size);
+	buffer1 = (u32*) linearAlloc(buffer_size);
+	buffer2 = (u32*) linearAlloc(buffer_size);
 
 	if(fread(header, 1, 44, file) == 0)
 	{
-		puts("Unable to read WAV file.");
+		err_print("Unable to read WAV file.");
 		goto out;
 	}
 
@@ -168,9 +219,19 @@ int playWav(const char *wav)
 	channels = (header[23]<<8) + (header[22]);
 	sample = (header[27]<<24) + (header[26]<<16) + (header[25]<<8) +
 		(header[24]);
+	byterate = (header[31]<<24) + (header[30]<<16) + (header[29]<<8) +
+		(header[28]);
+	blockalign = (header[33]<<8) + (header[32]);
 	bitness = (header[35]<<8) + (header[34]);
-	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %lu\n",
-			format == 1 ? "PCM" : "Other", format, channels, sample, bitness);
+	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %d, BR: %lu, BA: %lu\n",
+			format == 1 ? "PCM" : "Other", format, channels, sample, bitness,
+			byterate, blockalign);
+
+	if(channels > 2)
+	{
+		puts("Error: Invalid number of channels.");
+		goto out;
+	}
 
 	/**
 	 * Playing ADPCM, and 8 bit WAV files are disabled as they both sound like
@@ -179,87 +240,101 @@ int playWav(const char *wav)
 	switch(bitness)
 	{
 		case 8:
-			bitness = SOUND_FORMAT_8BIT;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM8 : NDSP_FORMAT_MONO_PCM8;
 			puts("8bit playback disabled.");
 			goto out;
 
 		case 16:
-			bitness = SOUND_FORMAT_16BIT;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
 			break;
 
 		default:
-			printf("Bitness of %lu unsupported.\n", bitness);
+			printf("Bitness of %d unsupported.\n", bitness);
 			goto out;
 	}
+
+	/* TODO: Use return value of fread to get number of samples.
+	 * TODO: Move all of this in the while loop.
+	 */
+	fread(buffer1, 1, buffer_size, file);
+	fread(buffer2, 1, buffer_size, file);
+	ndspChnReset(CHANNEL);
+	ndspChnWaveBufClear(CHANNEL);
+	/* Polyphase sounds much better than linear or no interpolation */
+	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
+	ndspChnSetRate(CHANNEL, sample);
+	ndspChnSetFormat(CHANNEL, bitness);
+
+	memset(waveBuf, 0, sizeof(waveBuf));
+	waveBuf[0].nsamples = buffer_size / blockalign;
+	waveBuf[0].data_vaddr = &buffer1[0];
+	waveBuf[1].nsamples = buffer_size / blockalign;
+	waveBuf[1].data_vaddr = &buffer2[0];
+	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
+	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
+	DSP_FlushDataCache(buffer1, buffer_size);
 
 	printf("Playing %s\n", wav);
 
-	while((bytesRead1 = fread(buffer1, 1, size, file)) > 0)
+	/**
+	 * There may be a chance that the music has not started by the time we get
+	 * to the while loop. So we ensure that music has started here.
+	 */
+	while(ndspChnIsPlaying(CHANNEL) == false)
+	{}
+
+	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
-		u8 status = 1;
+		u32 kDown;
 
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer1, size)))
-			puts("Flush failed.");
+		gfxSwapBuffers();
+		gfxFlushBuffers();
+		gspWaitForVBlank();
 
-		while(status != 0)
+		hidScanInput();
+		kDown = hidKeysDown();
+
+		if(kDown & KEY_B)
+			break;
+
+		if(kDown & KEY_A)
+			playing = !playing;
+
+		if(kDown & KEY_X)
 		{
-			u32 kDown;
-
-			csndIsPlaying(8, &status);
-
-			hidScanInput();
-			kDown = hidKeysDown();
-
-			if(kDown & KEY_B)
-				goto out;
+			debug_print("Pos: %lx of %lx\n", ndspChnGetSamplePos(CHANNEL),
+					buffer_size / bitness);
 		}
 
-		if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample * channels, 1, 0,
-					buffer1, NULL, bytesRead1) != 0)
+		if(playing == false)
+			continue;
+
+		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			printf("Error %d.\n", __LINE__);
-			goto out;
+			fread(buffer1, 1, buffer_size, file);
+			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
 
-		bytesRead2 = fread(buffer2, 1, size, file);
-
-		if(R_FAILED(GSPGPU_FlushDataCache(buffer2, size)))
-			puts("Flush failed.");
-
-		status = 1;
-
-		while(status != 0)
+		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			u32 kDown;
-
-			csndIsPlaying(8, &status);
-
-			hidScanInput();
-			kDown = hidKeysDown();
-
-			if(kDown & KEY_B)
-				goto out;
+			fread(buffer2, 1, buffer_size, file);
+			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
 
-		if(bytesRead2 == 0)
-			goto out;
-
-		if(csndPlaySound(8, bitness | SOUND_ONE_SHOT, sample * channels, 1, 0,
-					buffer2, NULL, bytesRead2) != 0)
-		{
-			printf("Error %d.\n", __LINE__);
-			goto out;
-		}
+		// TODO: Remove this printf.
+		printf("\rBuf0: %s, Buf1: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing",
+				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing");
 	}
+
+	debug_print("Pos: %lx\n", ndspChnGetSamplePos(CHANNEL));
+	debug_print("%s\n", "Before clear");
+
+	ndspChnWaveBufClear(CHANNEL);
 
 out:
 	puts("Stopping playback.");
 
-	csndExecCmds(true);
-	CSND_SetPlayState(8, 0);
-	if(R_FAILED(CSND_UpdateInfo(0)))
-		printf("Failed to stop audio playback.\n");
-
+	ndspExit();
 	fclose(file);
 	linearFree(buffer1);
 	linearFree(buffer2);
