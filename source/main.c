@@ -17,9 +17,9 @@
 
 #include "main.h"
 
-#define BUFFER_SIZE 16 * 1024
-#define AUDIO_FOLDER "sdmc:/MUSIC/"
-#define CHANNEL 0x08
+#define BUFFER_SIZE		16 * 1024
+#define AUDIO_FOLDER	"sdmc:/MUSIC/"
+#define CHANNEL			0x08
 
 /* Adds extra debugging text */
 #define DEBUG 0
@@ -164,8 +164,6 @@ int playWav(const char *wav)
 	u32		blockalign;
 	u32*	buffer1 = NULL;
 	u32*	buffer2 = NULL;
-	off_t	size;
-	off_t	buffer_size;
 	ndspWaveBuf waveBuf[2];
 	bool playing = true;
 	bool lastbuf = false;
@@ -248,17 +246,14 @@ int playWav(const char *wav)
 	ndspChnSetFormat(CHANNEL, bitness);
 	memset(waveBuf, 0, sizeof(waveBuf));
 
-	/* TODO: Use return value of fread to get number of samples.
-	 * TODO: Move all of this in the while loop.
-	 */
-	buffer1 = (u32*) linearAlloc(sample);
-	buffer2 = (u32*) linearAlloc(sample);
+	buffer1 = (u32*) linearAlloc(BUFFER_SIZE);
+	buffer2 = (u32*) linearAlloc(BUFFER_SIZE);
 
-	fread(buffer1, 1, sample, file);
-	fread(buffer2, 1, sample, file);
-	waveBuf[0].nsamples = sample / blockalign;
+	fread(buffer1, 1, BUFFER_SIZE, file);
+	fread(buffer2, 1, BUFFER_SIZE, file);
+	waveBuf[0].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[0].data_vaddr = &buffer1[0];
-	waveBuf[1].nsamples = sample / blockalign;
+	waveBuf[1].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
@@ -289,25 +284,19 @@ int playWav(const char *wav)
 		if(kDown & KEY_A)
 			playing = !playing;
 
-		if(kDown & KEY_X)
-		{
-			debug_print("Pos: %lx of %lx\n", ndspChnGetSamplePos(CHANNEL),
-					buffer_size / bitness);
-		}
-
 		if(playing == false || lastbuf == true)
 			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			size_t read = fread(buffer1, 1, sample, file);
+			size_t read = fread(buffer1, 1, BUFFER_SIZE, file);
 
 			if(read == 0)
 			{
 				lastbuf = true;
 				continue;
 			}
-			else if(read < sample)
+			else if(read < BUFFER_SIZE)
 				waveBuf[0].nsamples = read / blockalign;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
@@ -315,21 +304,21 @@ int playWav(const char *wav)
 
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			size_t read = fread(buffer2, 1, sample, file);
+			size_t read = fread(buffer2, 1, BUFFER_SIZE, file);
 
 			if(read == 0)
 			{
 				lastbuf = true;
 				continue;
 			}
-			else if(read < sample)
+			else if(read < BUFFER_SIZE)
 				waveBuf[1].nsamples = read / blockalign;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
 
-		DSP_FlushDataCache(buffer1, sample);
-		DSP_FlushDataCache(buffer2, sample);
+		DSP_FlushDataCache(buffer1, BUFFER_SIZE);
+		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
 
 		// TODO: Remove this printf.
 		printf("\rBuf0: %s, Buf1: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing",
