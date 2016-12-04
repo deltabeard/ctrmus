@@ -17,7 +17,7 @@
 
 #include "main.h"
 
-#define BUFFER_SIZE 1 * 1024 * 1024
+#define BUFFER_SIZE 16 * 1024
 #define AUDIO_FOLDER "sdmc:/MUSIC/"
 #define CHANNEL 0x08
 
@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 		while((ep = readdir(dp)) != NULL)
 			printf("%d: %s\n", ++fileMax, ep->d_name);
 
-		(void)closedir(dp);
+		if(closedir(dp) != 0)
+			err_print("Closing directory failed.");
 	}
 	else
 	{
@@ -70,6 +71,11 @@ int main(int argc, char **argv)
 	}
 
 	consoleSelect(&bottomScreen);
+
+	/**
+	 * This allows for music to continue playing through the headphones whilst
+	 * the 3DS is closed.
+	 */
 	aptSetSleepAllowed(false);
 
 	while(aptMainLoop())
@@ -161,6 +167,7 @@ int playWav(const char *wav)
 	off_t	size;
 	off_t	buffer_size;
 	ndspWaveBuf waveBuf[2];
+	bool playing = true;
 
 	if(R_FAILED(ndspInit()))
 	{
@@ -276,7 +283,7 @@ int playWav(const char *wav)
 	while(ndspChnIsPlaying(CHANNEL) == false)
 	{}
 
-	while(ndspChnIsPlaying(CHANNEL) == true)
+	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
 		u32 kDown;
 
@@ -290,11 +297,17 @@ int playWav(const char *wav)
 		if(kDown & KEY_B)
 			break;
 
+		if(kDown & KEY_A)
+			playing = !playing;
+
 		if(kDown & KEY_X)
 		{
 			debug_print("Pos: %lx of %lx\n", ndspChnGetSamplePos(CHANNEL),
 					buffer_size / bitness);
 		}
+
+		if(playing == false)
+			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
