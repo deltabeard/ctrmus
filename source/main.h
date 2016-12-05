@@ -14,3 +14,11 @@
  * \return			Zero if successful, else failure.
  */
 int playWav(const char *wav);
+
+/**
+ * Plays an Opus encoded music file.
+ *
+ * \param	file	File location of Opus file.
+ * \return			Zero if successful, else failure.
+ */
+int playOpus(const char *opus);

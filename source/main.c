@@ -10,7 +10,7 @@
 #include <3ds.h>
 #include <dirent.h>
 #include <errno.h>
-#include <opus/opus.h>
+#include <opus/opusfile.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +21,13 @@
 #define BUFFER_SIZE		16 * 1024
 #define AUDIO_FOLDER	"sdmc:/MUSIC/"
 #define CHANNEL			0x08
+
+// Temporary Opus defines
+#define CHANNELS		2
+#define MAX_FRAME_SIZE	6*960
+#define MAX_PACKET_SIZE	(3*1276)
+#define FRAME_SIZE		960
+
 
 /* Adds extra debugging text */
 #define DEBUG 0
@@ -134,7 +141,7 @@ int main(int argc, char **argv)
 			if(file == NULL)
 				err_print("Opening file failed.");
 			else
-				playWav(file);
+				playOpus(file); // TODO: make this dynamic
 
 			free(file);
 		}
@@ -339,4 +346,85 @@ out:
 	linearFree(buffer1);
 	linearFree(buffer2);
 	return 0;
+}
+
+/**
+ * Plays an Opus encoded music file.
+ *
+ * \param	file	File location of Opus file.
+ * \return			Zero if successful, else failure.
+ */
+int playOpus(const char *opus)
+{
+	err_print("Here");
+	FILE		*file	= fopen(opus, "rb");
+	opus_int16	*out = malloc(MAX_FRAME_SIZE*CHANNELS);
+	OpusDecoder	*decoder;
+	int			err;
+	ndspWaveBuf	waveBuf[1];
+
+	err_print("Here");
+	decoder = opus_decoder_create(48000, CHANNELS, &err);
+	if(err < 0)
+	{
+		fprintf(stderr, "failed to set bitrate: %s\n", opus_strerror(err));
+		return 1;
+	}
+
+	if(file == NULL)
+	{
+		err_print("Opening file failed.");
+		return 1;
+	}
+
+	err_print("Here");
+	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
+	ndspChnSetRate(CHANNEL, 48000);
+	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
+	memset(waveBuf, 0, sizeof(waveBuf));
+	//buffer1 = (u32*) linearAlloc(BUFFER_SIZE);
+	waveBuf[0].nsamples = MAX_FRAME_SIZE*CHANNELS*2;
+
+	err_print("Here");
+	while(1)
+	{
+		int i;
+		unsigned char* pcm_bytes = (unsigned char*)linearAlloc(BUFFER_SIZE);
+		int frame_size;
+
+		/* Read a 16 bits/sample audio frame. */
+		fread(pcm_bytes, 1, BUFFER_SIZE, file);
+
+		if (feof(file))
+			break;
+
+	err_print("Here");
+		/* Decode the data. In this example, frame_size will be constant because
+		   the encoder is using a constant frame size. However, that may not
+		   be the case for all encoders, so the decoder must always check
+		   the frame size returned. */
+		frame_size = opus_decode(decoder, pcm_bytes,
+				sizeof(pcm_bytes)/sizeof(unsigned char), out, MAX_FRAME_SIZE, 0);
+
+	err_print("Here");
+		if(frame_size < 0)
+		{
+			fprintf(stderr, "decoder failed: %s\n", opus_strerror(frame_size));
+			goto out;
+		}
+
+		waveBuf[0].data_vaddr = &pcm_bytes;
+
+		while(waveBuf[0].status != NDSP_WBUF_DONE)
+		{}
+
+		free(pcm_bytes);
+	}
+
+out:
+	/*Destroy the encoder state*/
+	opus_decoder_destroy(decoder);
+	fclose(file);
+	free(out);
+	return EXIT_SUCCESS;
 }
