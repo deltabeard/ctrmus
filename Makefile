@@ -42,7 +42,7 @@ APP_AUTHOR	=	Deltabeard
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-g -Wall -O2 -mword-relocations \
+CFLAGS	:=	-g -Wall -Os -mword-relocations \
 			-fomit-frame-pointer -ffunction-sections \
 			$(ARCH)
 
@@ -53,7 +53,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lctru -lopusfile -lm
+LIBS	:= -lctru -lopusfile -lopus -logg -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

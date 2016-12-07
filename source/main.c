@@ -17,17 +17,11 @@
 #include <string.h>
 
 #include "main.h"
+#include "trivial_example.h"
 
 #define BUFFER_SIZE		16 * 1024
 #define AUDIO_FOLDER	"sdmc:/MUSIC/"
 #define CHANNEL			0x08
-
-// Temporary Opus defines
-#define CHANNELS		2
-#define MAX_FRAME_SIZE	6*960
-#define MAX_PACKET_SIZE	(3*1276)
-#define FRAME_SIZE		960
-
 
 /* Adds extra debugging text */
 #define DEBUG 0
@@ -141,7 +135,14 @@ int main(int argc, char **argv)
 			if(file == NULL)
 				err_print("Opening file failed.");
 			else
-				playOpus(file); // TODO: make this dynamic
+			{
+				int ret;
+				// TODO: make this dynamic
+				if((ret = convOpus(file, "sdmc:/MUSIC/out.wav")) != 0)
+					playWav(file);
+
+				printf("ret=%d\n", ret);
+			}
 
 			free(file);
 		}
@@ -348,83 +349,91 @@ out:
 	return 0;
 }
 
-/**
- * Plays an Opus encoded music file.
- *
- * \param	file	File location of Opus file.
- * \return			Zero if successful, else failure.
- */
-int playOpus(const char *opus)
+#if 0
+int playOpus(const char* opus)
 {
-	err_print("Here");
-	FILE		*file	= fopen(opus, "rb");
-	opus_int16	*out = malloc(MAX_FRAME_SIZE*CHANNELS);
-	OpusDecoder	*decoder;
-	int			err;
-	ndspWaveBuf	waveBuf[1];
+	OggOpusFile	*of;
+	int			ret;
+	int			output_seekable;
+	FILE*		outfile;
+	ogg_int64_t pcm_offset;
+	ogg_int64_t pcm_print_offset;
+	ogg_int64_t nsamples;
+	opus_int32  bitrate = 0;
+	int         prev_li;
 
-	err_print("Here");
-	decoder = opus_decoder_create(48000, CHANNELS, &err);
-	if(err < 0)
+	printf("Size: %u\n", sizeof(of));
+	of = op_open_file(opus, &ret);
+	if(of == NULL)
 	{
-		fprintf(stderr, "failed to set bitrate: %s\n", opus_strerror(err));
-		return 1;
+		fprintf(stderr,"Failed to open file '%s': %i\n", opus, ret);
+		return -1;
 	}
 
-	if(file == NULL)
-	{
-		err_print("Opening file failed.");
-		return 1;
+	outfile = fopen("sdmc:/MUSIC/out.wav", "wb+");
+	if(outfile == NULL){
+		fprintf(stderr,"Failed to open output file : %i\n",ret);
+		return EXIT_FAILURE;
 	}
 
-	err_print("Here");
-	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
-	ndspChnSetRate(CHANNEL, 48000);
-	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
-	memset(waveBuf, 0, sizeof(waveBuf));
-	//buffer1 = (u32*) linearAlloc(BUFFER_SIZE);
-	waveBuf[0].nsamples = MAX_FRAME_SIZE*CHANNELS*2;
+	pcm_offset = op_pcm_tell(of);
+	if(pcm_offset != 0){
+		fprintf(stderr, "Non-zero starting PCM offset: %li\n", (long)pcm_offset);
+	}
 
-	err_print("Here");
-	while(1)
-	{
-		int i;
-		unsigned char* pcm_bytes = (unsigned char*)linearAlloc(BUFFER_SIZE);
-		int frame_size;
+	printf("pcm_offset: %li\n", pcm_offset);
+	pcm_print_offset = pcm_offset - 48000;
 
-		/* Read a 16 bits/sample audio frame. */
-		fread(pcm_bytes, 1, BUFFER_SIZE, file);
+	for(;;){
+		ogg_int64_t   next_pcm_offset;
+		opus_int16*    pcm = (opus_int16*)malloc(120*48*2*sizeof(opus_int16));
+		unsigned char* out = (unsigned char*)malloc(120*48*2*2*sizeof(unsigned char));
+		int           li;
+		int           si;
+		static int	count = 0;
 
-		if (feof(file))
-			break;
-
-	err_print("Here");
-		/* Decode the data. In this example, frame_size will be constant because
-		   the encoder is using a constant frame size. However, that may not
-		   be the case for all encoders, so the decoder must always check
-		   the frame size returned. */
-		frame_size = opus_decode(decoder, pcm_bytes,
-				sizeof(pcm_bytes)/sizeof(unsigned char), out, MAX_FRAME_SIZE, 0);
-
-	err_print("Here");
-		if(frame_size < 0)
+		ret = op_read_stereo(of, pcm, sizeof(pcm)/sizeof(*pcm));
+		if(ret < 0)
 		{
-			fprintf(stderr, "decoder failed: %s\n", opus_strerror(frame_size));
-			goto out;
+			fprintf(stderr, "\nError decoding '%s': %i\n", opus, ret);
+			ret = EXIT_FAILURE;
+			break;
 		}
+		printf("\rCount: %d", count++);
 
-		waveBuf[0].data_vaddr = &pcm_bytes;
+		next_pcm_offset=op_pcm_tell(of);
+		if(pcm_offset+ret!=next_pcm_offset){
+			fprintf(stderr,"\nPCM offset gap! %li+%i!=%li\n",
+					(long)pcm_offset,ret,(long)next_pcm_offset);
+		}
+		pcm_offset=next_pcm_offset;
+		if(ret<=0){
+			ret=EXIT_SUCCESS;
+			break;
+		}
+		/*Ensure the data is little-endian before writing it out.*/
+		for(si=0;si<2*ret;si++){
+			out[2*si+0]=(unsigned char)(pcm[si]&0xFF);
+			out[2*si+1]=(unsigned char)(pcm[si]>>8&0xFF);
+		}
+		if(!fwrite(out,sizeof(*out)*4*ret,1,outfile)){
+			fprintf(stderr,"\nError writing decoded audio data: %s\n",
+					strerror(errno));
+			ret=EXIT_FAILURE;
+			break;
+		}
+		nsamples+=ret;
+		prev_li=li;
 
-		while(waveBuf[0].status != NDSP_WBUF_DONE)
-		{}
-
-		free(pcm_bytes);
+		free(pcm);
 	}
 
-out:
-	/*Destroy the encoder state*/
-	opus_decoder_destroy(decoder);
-	fclose(file);
-	free(out);
-	return EXIT_SUCCESS;
+	if(ret==EXIT_SUCCESS){
+		fprintf(stderr,"\nDone: played ");
+		fprintf(stderr," (%li samples @ 48 kHz).\n",(long)nsamples);
+	}
+	fclose(outfile);
+	op_free(of);
+	return ret;
 }
+#endif
