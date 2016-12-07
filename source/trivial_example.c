@@ -28,71 +28,6 @@
 # define fileno _fileno
 #endif
 
-static void print_duration(FILE *_fp,ogg_int64_t _nsamples,int _frac){
-	ogg_int64_t seconds;
-	ogg_int64_t minutes;
-	ogg_int64_t hours;
-	ogg_int64_t days;
-	ogg_int64_t weeks;
-	_nsamples+=_frac?24:24000;
-	seconds=_nsamples/48000;
-	_nsamples-=seconds*48000;
-	minutes=seconds/60;
-	seconds-=minutes*60;
-	hours=minutes/60;
-	minutes-=hours*60;
-	days=hours/24;
-	hours-=days*24;
-	weeks=days/7;
-	days-=weeks*7;
-	if(weeks)fprintf(_fp,"%liw",(long)weeks);
-	if(weeks||days)fprintf(_fp,"%id",(int)days);
-	if(weeks||days||hours){
-		if(weeks||days)fprintf(_fp,"%02ih",(int)hours);
-		else fprintf(_fp,"%ih",(int)hours);
-	}
-	if(weeks||days||hours||minutes){
-		if(weeks||days||hours)fprintf(_fp,"%02im",(int)minutes);
-		else fprintf(_fp,"%im",(int)minutes);
-		fprintf(_fp,"%02i",(int)seconds);
-	}
-	else fprintf(_fp,"%i",(int)seconds);
-	if(_frac)fprintf(_fp,".%03i",(int)(_nsamples/48));
-	fprintf(_fp,"s");
-}
-
-static void print_size(FILE *_fp,opus_int64 _nbytes,int _metric,
-		const char *_spacer){
-	static const char SUFFIXES[7]={' ','k','M','G','T','P','E'};
-	opus_int64 val;
-	opus_int64 den;
-	opus_int64 round;
-	int        base;
-	int        shift;
-	base=_metric?1000:1024;
-	round=0;
-	den=1;
-	for(shift=0;shift<6;shift++){
-		if(_nbytes<den*base-round)break;
-		den*=base;
-		round=den>>1;
-	}
-	val=(_nbytes+round)/den;
-	if(den>1&&val<10){
-		if(den>=1000000000)val=(_nbytes+(round/100))/(den/100);
-		else val=(_nbytes*100+round)/den;
-		fprintf(_fp,"%li.%02i%s%c",(long)(val/100),(int)(val%100),
-				_spacer,SUFFIXES[shift]);
-	}
-	else if(den>1&&val<100){
-		if(den>=1000000000)val=(_nbytes+(round/10))/(den/10);
-		else val=(_nbytes*10+round)/den;
-		fprintf(_fp,"%li.%i%s%c",(long)(val/10),(int)(val%10),
-				_spacer,SUFFIXES[shift]);
-	}
-	else fprintf(_fp,"%li%s%c",(long)val,_spacer,SUFFIXES[shift]);
-}
-
 static void put_le32(unsigned char *_dst,opus_uint32 _x){
 	_dst[0]=(unsigned char)(_x&0xFF);
 	_dst[1]=(unsigned char)(_x>>8&0xFF);
@@ -137,71 +72,47 @@ int convOpus(const char* in, const char *outf){
 	unsigned char	wav_header[44];
 	int				ret;
 	int				output_seekable;
-#if 0
-		if(of==NULL){
-			OpusFileCallbacks  cb={NULL,NULL,NULL,NULL};
-			void              *fp;
-			/*For debugging: force a file to not be seekable.*/
-			fp=op_fopen(&cb,_argv[1],"rb");
-			cb.seek=NULL;
-			cb.tell=NULL;
-			of=op_open_callbacks(fp,&cb,NULL,0,NULL);
-		}
-#else
+
 	of = op_open_file(in, &ret);
+
 	if((wav = fopen(outf, "w+")) == NULL)
 	{
 		fprintf(stderr,"Failed to open file '%s': %i\n",outf,errno);
 		return EXIT_FAILURE;
 	}
-#endif
+
 	if(of==NULL){
 		fprintf(stderr,"Failed to open file '%s': %i\n",in,ret);
 		return EXIT_FAILURE;
 	}
+
 	duration=0;
 	output_seekable=fseek(wav,0,SEEK_CUR)!=-1;
+
 	if(op_seekable(of)){
-		opus_int64  size;
 		fprintf(stderr,"Total number of links: %i\n",op_link_count(of));
 		duration=op_pcm_total(of,-1);
 		fprintf(stderr,"Total duration: ");
-		print_duration(stderr,duration,3);
 		fprintf(stderr," (%li samples @ 48 kHz)\n",(long)duration);
-		size=op_raw_total(of,-1);
-		fprintf(stderr,"Total size: ");
-		print_size(stderr,size,0,"");
-		fprintf(stderr,"\n");
 	}
 	else if(!output_seekable){
 		fprintf(stderr,"WARNING: Neither input nor output are seekable.\n");
 		fprintf(stderr,
 				"Writing non-standard WAV header with invalid chunk sizes.\n");
 	}
+
 	make_wav_header(wav_header,duration);
+
 	if(!fwrite(wav_header,sizeof(wav_header),1,wav)){
 		fprintf(stderr,"Error writing WAV header: %s\n",strerror(errno));
 		ret=EXIT_FAILURE;
 	}
 	else{
-		ogg_int64_t pcm_offset;
-		ogg_int64_t pcm_print_offset;
 		ogg_int64_t nsamples;
-		opus_int32  bitrate;
-		int         prev_li;
 		opus_int16*		pcm = malloc(120*48*2*sizeof(opus_int16));
-		opus_int8*		out = malloc(120*48*2*sizeof(opus_int8));
-		prev_li=-1;
+		unsigned char*	out = malloc(120*48*2*2*sizeof(unsigned char));
 		nsamples=0;
-		pcm_offset=op_pcm_tell(of);
-		if(pcm_offset!=0){
-			fprintf(stderr,"Non-zero starting PCM offset: %li\n",(long)pcm_offset);
-		}
-		pcm_print_offset=pcm_offset-48000;
-		bitrate=0;
 		for(;;){
-			ogg_int64_t   next_pcm_offset;
-			int           li;
 			int           si;
 			/*Although we would generally prefer to use the float interface, WAV
 			  files with signed, 16-bit little-endian samples are far more
@@ -212,102 +123,14 @@ int convOpus(const char* in, const char *outf){
 				ret=EXIT_FAILURE;
 				break;
 			}
-			li=op_current_link(of);
-			if(li!=prev_li){
-				const OpusHead *head;
-				const OpusTags *tags;
-				int             binary_suffix_len;
-				int             ci;
-				/*We found a new link.
-				  Print out some information.*/
-				fprintf(stderr,"Decoding link %i:                          \n",li);
-				head=op_head(of,li);
-				fprintf(stderr,"  Channels: %i\n",head->channel_count);
-				if(op_seekable(of)){
-					ogg_int64_t duration;
-					opus_int64  size;
-					duration=op_pcm_total(of,li);
-					fprintf(stderr,"  Duration: ");
-					print_duration(stderr,duration,3);
-					fprintf(stderr," (%li samples @ 48 kHz)\n",(long)duration);
-					size=op_raw_total(of,li);
-					fprintf(stderr,"  Size: ");
-					print_size(stderr,size,0,"");
-					fprintf(stderr,"\n");
-				}
-				if(head->input_sample_rate){
-					fprintf(stderr,"  Original sampling rate: %lu Hz\n",
-							(unsigned long)head->input_sample_rate);
-				}
-				tags=op_tags(of,li);
-				fprintf(stderr,"  Encoded by: %s\n",tags->vendor);
-				for(ci=0;ci<tags->comments;ci++){
-					const char *comment;
-					comment=tags->user_comments[ci];
-					if(opus_tagncompare("METADATA_BLOCK_PICTURE",22,comment)==0){
-						OpusPictureTag pic;
-						int            err;
-						err=opus_picture_tag_parse(&pic,comment);
-						fprintf(stderr,"  %.23s",comment);
-						if(err>=0){
-							fprintf(stderr,"%u|%s|%s|%ux%ux%u",pic.type,pic.mime_type,
-									pic.description,pic.width,pic.height,pic.depth);
-							if(pic.colors!=0)fprintf(stderr,"/%u",pic.colors);
-							if(pic.format==OP_PIC_FORMAT_URL){
-								fprintf(stderr,"|%s\n",pic.data);
-							}
-							else{
-								fprintf(stderr,"|<%u bytes of image data>\n",pic.data_length);
-							}
-							opus_picture_tag_clear(&pic);
-						}
-						else fprintf(stderr,"<error parsing picture tag>\n");
-					}
-					else fprintf(stderr,"  %s\n",tags->user_comments[ci]);
-				}
-				if(opus_tags_get_binary_suffix(tags,&binary_suffix_len)!=NULL){
-					fprintf(stderr,"<%u bytes of unknown binary metadata>\n",
-							binary_suffix_len);
-				}
-				fprintf(stderr,"\n");
-				if(!op_seekable(of)){
-					pcm_offset=op_pcm_tell(of)-ret;
-					if(pcm_offset!=0){
-						fprintf(stderr,"Non-zero starting PCM offset in link %i: %li\n",
-								li,(long)pcm_offset);
-					}
-				}
-			}
-			if(li!=prev_li||pcm_offset>=pcm_print_offset+48000){
-				opus_int32 next_bitrate;
-				opus_int64 raw_offset;
-				next_bitrate=op_bitrate_instant(of);
-				if(next_bitrate>=0)bitrate=next_bitrate;
-				raw_offset=op_raw_tell(of);
-				fprintf(stderr,"\r ");
-				print_size(stderr,raw_offset,0,"");
-				fprintf(stderr,"  ");
-				print_duration(stderr,pcm_offset,0);
-				fprintf(stderr,"  (");
-				print_size(stderr,bitrate,1," ");
-				fprintf(stderr,"bps)                    \r");
-				pcm_print_offset=pcm_offset;
-				fflush(stderr);
-			}
-			next_pcm_offset=op_pcm_tell(of);
-			if(pcm_offset+ret!=next_pcm_offset){
-				fprintf(stderr,"\nPCM offset gap! %li+%i!=%li\n",
-						(long)pcm_offset,ret,(long)next_pcm_offset);
-			}
-			pcm_offset=next_pcm_offset;
 			if(ret<=0){
 				ret=EXIT_SUCCESS;
 				break;
 			}
 			/*Ensure the data is little-endian before writing it out.*/
 			for(si=0;si<2*ret;si++){
-				out[2*si+0]=(opus_int8)(pcm[si]&0xFF);
-				out[2*si+1]=(opus_int8)(pcm[si]>>8&0xFF);
+				out[2*si+0]=(unsigned char)(pcm[si]&0xFF);
+				out[2*si+1]=(unsigned char)(pcm[si]>>8&0xFF);
 			}
 			if(!fwrite(out,sizeof(*out)*4*ret,1,wav)){
 				fprintf(stderr,"\nError writing decoded audio data: %s\n",
@@ -316,14 +139,15 @@ int convOpus(const char* in, const char *outf){
 				break;
 			}
 			nsamples+=ret;
-			prev_li=li;
+
+			if(nsamples % 1000 == 0)
+				fprintf(stderr, "\rSample: %li", (long)nsamples);
 			//End of for loop.
 		}
 		free(pcm);
 		free(out);
 		if(ret==EXIT_SUCCESS){
 			fprintf(stderr,"\nDone: played ");
-			print_duration(stderr,nsamples,3);
 			fprintf(stderr," (%li samples @ 48 kHz).\n",(long)nsamples);
 		}
 		if(op_seekable(of)&&nsamples!=duration){
@@ -340,6 +164,7 @@ int convOpus(const char* in, const char *outf){
 			}
 		}
 	}
+
 	fclose(wav);
 	op_free(of);
 	return ret;
