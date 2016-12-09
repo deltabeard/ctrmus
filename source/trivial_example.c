@@ -29,7 +29,9 @@
 # define fileno _fileno
 #endif
 
-#define BUFFER_SIZE 120*48*2
+// Number of samples per second * channels * size of one sample
+#define CHANNEL		0x08
+#define BUFFER_SIZE	120*48*2*sizeof(opus_int16)*32
 
 int convOpus(const char* in, const char *outf)
 {
@@ -39,20 +41,21 @@ int convOpus(const char* in, const char *outf)
 	int				ret;
 	int				output_seekable;
 	ogg_int64_t		nsamples = 0;
-	opus_int16*		pcm = malloc(BUFFER_SIZE*sizeof(opus_int16));
-	unsigned char*	out = malloc(BUFFER_SIZE*2*sizeof(unsigned char));
+	opus_int16*		pcm = malloc(120*48*2*sizeof(opus_int16));
+	// Buffer to play one second.
+	ndspWaveBuf		waveBuf[2];
 
 	of = op_open_file(in, &ret);
 
 	if((wav = fopen(outf, "w+")) == NULL)
 	{
-		fprintf(stderr,"Failed to open file '%s': %i %s\n",outf,errno, strerror(errno));
+		fprintf(stderr, "Failed to open file '%s': %i %s\n",outf,errno, strerror(errno));
 		return EXIT_FAILURE;
 	}
 
 	if(of == NULL)
 	{
-		fprintf(stderr,"Failed to open file '%s': %i\n",in,ret);
+		fprintf(stderr, "Failed to open file '%s': %i\n",in,ret);
 		return EXIT_FAILURE;
 	}
 
@@ -60,27 +63,53 @@ int convOpus(const char* in, const char *outf)
 
 	if(op_seekable(of))
 	{
-		fprintf(stderr,"Total number of links: %i\n",op_link_count(of));
+		fprintf(stderr, "\nTotal number of links: %i\n", op_link_count(of));
 		// Get PCM length of entire stream.
 		duration = op_pcm_total(of, -1);
-		fprintf(stderr,"Total duration: ");
-		fprintf(stderr," (%li samples @ 48 kHz)\n",(long)duration);
+		fprintf(stderr, "Total duration: ");
+		fprintf(stderr, " (%li samples @ 48 kHz)\n", (long)duration);
 	}
 	else if(output_seekable < 0)
-	{
 		fprintf(stderr,"WARNING: Neither input nor output are seekable.\n");
-		fprintf(stderr,
-				"Writing non-standard WAV header with invalid chunk sizes.\n");
+
+	/* Initialise DSP stuff */
+	if(R_FAILED(ndspInit()))
+	{
+		printf("Initialising ndsp failed.");
+		goto out;
 	}
+
+	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+	ndspChnReset(CHANNEL);
+	ndspChnWaveBufClear(CHANNEL);
+	/* Polyphase sounds much better than linear or no interpolation */
+	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
+	ndspChnSetRate(CHANNEL, 48000);
+	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
+	memset(waveBuf, 0, sizeof(waveBuf));
+
+	fprintf(stderr, "PCM %d, %d\n", sizeof(pcm), sizeof(*pcm));
 
 	for(;;)
 	{
-		int si;
+		u32 kDown;
 
-		/*Although we would generally prefer to use the float interface, WAV
-		  files with signed, 16-bit little-endian samples are far more
-		  universally supported, so that's what we output.*/
-		ret = op_read_stereo(of, pcm, sizeof(pcm)/sizeof(*pcm));
+		hidScanInput();
+		gfxFlushBuffers();
+		gfxSwapBuffers();
+		gspWaitForVBlank();
+
+		kDown = hidKeysDown();
+
+		if(kDown & KEY_B)
+			break;
+
+		/*
+		 * Although we would generally prefer to use the float interface, WAV
+		 * files with signed, 16-bit little-endian samples are far more
+		 * universally supported, so that's what we output.
+		 */
+		ret = op_read_stereo(of, pcm, 120*48*2);
 
 		if(ret < 0)
 		{
@@ -95,14 +124,12 @@ int convOpus(const char* in, const char *outf)
 			break;
 		}
 
-		/*Ensure the data is little-endian before writing it out.*/
-		for(si=0; si<2*ret; si++)
-		{
-			out[2*si+0]=(unsigned char)(pcm[si]&0xFF);
-			out[2*si+1]=(unsigned char)(pcm[si]>>8&0xFF);
-		}
+		nsamples += ret;
 
-		if(fwrite(out, sizeof(u32), 1, wav) == 0)
+		fprintf(stderr, "\rRet: %d, Sample: %li", ret, (long)nsamples);
+
+		// Number of samples read * size of each sample * number of channels
+		if(fwrite(pcm, ret * sizeof(opus_int16) * 2, 1, wav) == 0)
 		{
 			fprintf(stderr, "\nError writing decoded audio data: %s\n",
 					strerror(errno));
@@ -110,18 +137,19 @@ int convOpus(const char* in, const char *outf)
 			break;
 		}
 
-		nsamples += ret;
-
-		if(nsamples % 1000 == 0)
-			fprintf(stderr, "\rRet: %d, Sample: %li", ret, (long)nsamples);
+#if 0
+		waveBuf[0].data_vaddr = &pcm[0];
+		waveBuf[0].nsamples = ret;
+		ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
+		while(ndspChnIsPlaying(CHANNEL) == false)
+		{}
+		while(ndspChnIsPlaying(CHANNEL) == true)
+		{}
+		printf(" Buf0: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing");
+#endif
 	}
-	
-	gfxFlushBuffers();
-	gfxSwapBuffers();
-	gspWaitForVBlank();
 
 	free(pcm);
-	free(out);
 
 	if(ret == EXIT_SUCCESS)
 	{
@@ -140,6 +168,8 @@ int convOpus(const char* in, const char *outf)
 	if(fclose(wav) != 0)
 		fprintf(stderr, "\nError closing file: %d - %s\n", errno, strerror(errno));
 
+out:
+	ndspExit();
 	op_free(of);
 
 	return ret;
