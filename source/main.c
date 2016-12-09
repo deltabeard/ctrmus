@@ -183,6 +183,7 @@ int playWav(const char *wav)
 		goto out;
 	}
 
+	// TODO: Check if this is required.
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 
 	if(file == NULL)
