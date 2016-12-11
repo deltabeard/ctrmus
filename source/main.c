@@ -162,8 +162,8 @@ int playWav(const char *wav)
 	u8		bitness;
 	u32		byterate; // TODO: Not used.
 	u32		blockalign;
-	u32*	buffer1 = NULL;
-	u32*	buffer2 = NULL;
+	s16*	buffer1 = NULL;
+	s16*	buffer2 = NULL;
 	ndspWaveBuf waveBuf[2];
 	bool playing = true;
 	bool lastbuf = false;
@@ -246,8 +246,8 @@ int playWav(const char *wav)
 	ndspChnSetFormat(CHANNEL, bitness);
 	memset(waveBuf, 0, sizeof(waveBuf));
 
-	buffer1 = (u32*) linearAlloc(BUFFER_SIZE);
-	buffer2 = (u32*) linearAlloc(BUFFER_SIZE);
+	buffer1 = (s16*) linearAlloc(BUFFER_SIZE);
+	buffer2 = (s16*) linearAlloc(BUFFER_SIZE);
 
 	fread(buffer1, 1, BUFFER_SIZE, file);
 	fread(buffer2, 1, BUFFER_SIZE, file);
