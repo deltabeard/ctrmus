@@ -280,6 +280,10 @@ int playWav(const char *wav)
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
 		u32 kDown;
+		/* Number of bytes read from file.
+		 * Static only for the purposes of the printf debug at the bottom.
+		 */
+		static size_t read = 0;
 
 		gfxSwapBuffers();
 		gfxFlushBuffers();
@@ -295,11 +299,14 @@ int playWav(const char *wav)
 			playing = !playing;
 
 		if(playing == false || lastbuf == true)
+		{
+			printf("\33[2K\rPaused");
 			continue;
+		}
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			size_t read = fread(buffer1, 1, BUFFER_SIZE, file);
+			read = fread(buffer1, 1, BUFFER_SIZE, file);
 
 			if(read == 0)
 			{
@@ -314,7 +321,7 @@ int playWav(const char *wav)
 
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			size_t read = fread(buffer2, 1, BUFFER_SIZE, file);
+			read = fread(buffer2, 1, BUFFER_SIZE, file);
 
 			if(read == 0)
 			{
@@ -331,8 +338,10 @@ int playWav(const char *wav)
 		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
 
 		// TODO: Remove this printf.
-		printf("\rBuf0: %s, Buf1: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing",
-				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing");
+		// \33[2K clears the current line.
+		printf("\33[2K\rSamp: %lu\tBuf0: %s\tBuf1: %s", read / blockalign,
+				waveBuf[0].status == NDSP_WBUF_QUEUED ? "Q" : "P",
+				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Q" : "P");
 	}
 
 	debug_print("Pos: %lx\n", ndspChnGetSamplePos(CHANNEL));

@@ -9,25 +9,12 @@
  * by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
  *                                                                  *
  ********************************************************************/
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-/*For fileno()*/
-#if !defined(_POSIX_SOURCE)
-# define _POSIX_SOURCE 1
-#endif
 #include <3ds.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <opus/opusfile.h>
-#if defined(_WIN32)
-# include "win32utf8.h"
-# undef fileno
-# define fileno _fileno
-#endif
 
 // Number of samples per second * channels * size of one sample
 #define CHANNEL		0x08
@@ -41,9 +28,8 @@ int convOpus(const char* in, const char *outf)
 	int				ret;
 	int				output_seekable;
 	ogg_int64_t		nsamples = 0;
-	opus_int16*		pcm = malloc(120*48*2*sizeof(opus_int16));
-	// Buffer to play one second.
-	ndspWaveBuf		waveBuf[2];
+	opus_int16*		pcm = linearAlloc(120*48*2*sizeof(opus_int16)*32);
+	ndspWaveBuf		waveBuf;
 
 	of = op_open_file(in, &ret);
 
@@ -59,6 +45,7 @@ int convOpus(const char* in, const char *outf)
 		return EXIT_FAILURE;
 	}
 
+	// Not really required.
 	output_seekable = fseek(wav, 0, SEEK_CUR);
 
 	if(op_seekable(of))
@@ -86,13 +73,16 @@ int convOpus(const char* in, const char *outf)
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, 48000);
 	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
-	memset(waveBuf, 0, sizeof(waveBuf));
+	memset(&waveBuf, 0, sizeof(waveBuf));
+	waveBuf.data_vaddr = &pcm;
 
 	fprintf(stderr, "PCM %d, %d\n", sizeof(pcm), sizeof(*pcm));
 
 	for(;;)
 	{
 		u32 kDown;
+		static int num = 0;
+		int semsamples = 0;
 
 		hidScanInput();
 		gfxFlushBuffers();
@@ -104,12 +94,14 @@ int convOpus(const char* in, const char *outf)
 		if(kDown & KEY_B)
 			break;
 
-		/*
-		 * Although we would generally prefer to use the float interface, WAV
-		 * files with signed, 16-bit little-endian samples are far more
-		 * universally supported, so that's what we output.
-		 */
-		ret = op_read_stereo(of, pcm, 120*48*2);
+		/* Returns number of samples decoded. */
+		for(int i = 0; i < 32; i++)
+		{
+			ret = op_read_stereo(of, pcm + (120*48*2*i), 120*48*2);
+			nsamples += ret;
+			semsamples += ret;
+		}
+
 
 		if(ret < 0)
 		{
@@ -124,10 +116,31 @@ int convOpus(const char* in, const char *outf)
 			break;
 		}
 
-		nsamples += ret;
 
-		fprintf(stderr, "\rRet: %d, Sample: %li", ret, (long)nsamples);
+		waveBuf.nsamples = semsamples;
 
+		fprintf(stderr, "Ret: %d, #: %d, Sample: %li", ret, num++,
+				(long)semsamples);
+		DSP_FlushDataCache(pcm, 120*48*2*sizeof(opus_int16)*32);
+		ndspChnWaveBufAdd(CHANNEL, &waveBuf);
+
+		while(waveBuf.status != NDSP_WBUF_DONE)
+		{
+			u32 kDown;
+			hidScanInput();
+			kDown = hidKeysDown();
+
+			if(kDown & KEY_B)
+				break;
+
+			if(kDown & KEY_START)
+				goto out;
+
+			printf("Status: %d:%s\n", waveBuf.status,
+					waveBuf.status == NDSP_WBUF_QUEUED ? "Que'd" : "Playing");
+		}
+
+#if 0
 		// Number of samples read * size of each sample * number of channels
 		if(fwrite(pcm, ret * sizeof(opus_int16) * 2, 1, wav) == 0)
 		{
@@ -137,7 +150,6 @@ int convOpus(const char* in, const char *outf)
 			break;
 		}
 
-#if 0
 		waveBuf[0].data_vaddr = &pcm[0];
 		waveBuf[0].nsamples = ret;
 		ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
@@ -148,8 +160,6 @@ int convOpus(const char* in, const char *outf)
 		printf(" Buf0: %s.", waveBuf[0].status == NDSP_WBUF_QUEUED ? "Queued" : "Playing");
 #endif
 	}
-
-	free(pcm);
 
 	if(ret == EXIT_SUCCESS)
 	{
@@ -171,6 +181,7 @@ int convOpus(const char* in, const char *outf)
 out:
 	ndspExit();
 	op_free(of);
+	linearFree(pcm);
 
 	return ret;
 }
