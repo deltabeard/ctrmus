@@ -14,5 +14,3 @@
  * \return			Zero if successful, else failure.
  */
 int playWav(const char *wav);
-
-int playOpus(const char *opus);
