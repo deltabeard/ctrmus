@@ -136,12 +136,24 @@ int main(int argc, char **argv)
 				err_print("Opening file failed.");
 			else
 			{
-				int ret;
-				// TODO: make this dynamic
-				if((ret = convOpus(file, "sdmc:/MUSIC/out.wav")) != 0)
-					playWav(file);
+				char* ext = strrchr(file, '.');
 
-				printf("ret=%d\n", ret);
+				if(ext == NULL)
+					printf("\nUnable to obtain file type.");
+				else
+				{
+					/* To skip the dot */
+					ext++;
+
+					// TODO: Don't rely on file extension.
+					if(strncasecmp(ext, "opus", 4) == 0)
+						convOpus(file, "sdmc:/MUSIC/out.wav");
+					else if(strncasecmp(ext, "wav", 3) == 0 ||
+							strncasecmp(ext, "aiff", 4) == 0)
+						playWav(file);
+					else
+						printf("\nFile type \"%s\" not recognised.", ext);
+				}
 			}
 
 			free(file);
