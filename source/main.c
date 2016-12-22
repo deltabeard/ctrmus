@@ -18,6 +18,7 @@
 
 #include "main.h"
 #include "trivial_example.h"
+#include "vorbis.h"
 
 #define BUFFER_SIZE		16 * 1024
 #define AUDIO_FOLDER	"sdmc:/MUSIC/"
@@ -148,6 +149,8 @@ int main(int argc, char **argv)
 					// TODO: Don't rely on file extension.
 					if(strncasecmp(ext, "opus", 4) == 0)
 						convOpus(file, "sdmc:/MUSIC/out.wav");
+					else if(strncasecmp(ext, "ogg", 3) == 0)
+						playOgg(file);
 					else if(strncasecmp(ext, "wav", 3) == 0 ||
 							strncasecmp(ext, "aiff", 4) == 0)
 						playWav(file);
