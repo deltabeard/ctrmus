@@ -7,7 +7,7 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <../source/dr_libs/dr_flac.h>
 
-#define SAMPLES_TO_READ	256 * 1024
+#define SAMPLES_TO_READ	128 * 1024
 #define CHANNEL			0x08
 
 int playFlac(const char* in)
@@ -43,10 +43,10 @@ int playFlac(const char* in)
 	ndspChnSetRate(CHANNEL, pFlac->sampleRate);
 	ndspChnSetFormat(CHANNEL, pFlac->channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
 	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples = drflac_read_s32(pFlac, chunkSize, buffer1);
+	waveBuf[0].nsamples = drflac_read_s16(pFlac, chunkSize, buffer1) / pFlac->channels;
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-	waveBuf[1].nsamples = drflac_read_s32(pFlac, chunkSize, buffer2);
+	waveBuf[1].nsamples = drflac_read_s16(pFlac, chunkSize, buffer2) / pFlac->channels;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
@@ -87,7 +87,7 @@ int playFlac(const char* in)
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			read = drflac_read_s32(pFlac, chunkSize, buffer1);
+			read = drflac_read_s16(pFlac, chunkSize, buffer1);
 
 			if(read == 0)
 			{
@@ -95,14 +95,14 @@ int playFlac(const char* in)
 				continue;
 			}
 			else if(read < chunkSize)
-				waveBuf[0].nsamples = read;
+				waveBuf[0].nsamples = read / pFlac->channels;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
 
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			read = drflac_read_s32(pFlac, chunkSize, buffer2);
+			read = drflac_read_s16(pFlac, chunkSize, buffer2);
 
 			if(read == 0)
 			{
@@ -110,7 +110,7 @@ int playFlac(const char* in)
 				continue;
 			}
 			else if(read < chunkSize)
-				waveBuf[1].nsamples = read;
+				waveBuf[1].nsamples = read / pFlac->channels;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
@@ -120,7 +120,7 @@ int playFlac(const char* in)
 
 		// TODO: Remove this printf.
 		// \33[2K clears the current line.
-		printf("\33[2K\rRead: %lu\tBuf0: %s\tBuf1: %s", read,
+		printf("\33[2K\rRead: %u\tBuf0: %s\tBuf1: %s", read,
 				waveBuf[0].status == NDSP_WBUF_QUEUED ? "Q" : "P",
 				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Q" : "P");
 	}

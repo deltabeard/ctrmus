@@ -36,14 +36,22 @@
 	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
 			err, strerror(errno)); } while (0)
 
+enum file_types {
+	FILE_TYPE_ERROR = -1,
+	FILE_TYPE_WAV,
+	FILE_TYPE_FLAC,
+	FILE_TYPE_OGG,
+	FILE_TYPE_OPUS
+};
+
 int main(int argc, char **argv)
 {
 	DIR				*dp;
 	struct dirent	*ep;
 	PrintConsole	topScreen;
 	PrintConsole	bottomScreen;
-	u8 fileMax = 0;
-	u8 fileNum = 1;
+	u8				fileMax = 0;
+	u8				fileNum = 1;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreen);
@@ -137,25 +145,18 @@ int main(int argc, char **argv)
 				err_print("Opening file failed.");
 			else
 			{
-				char* ext = strrchr(file, '.');
-
-				if(ext == NULL)
-					printf("\nUnable to obtain file type.");
-				else
+				switch(getFileType(file))
 				{
-					/* To skip the dot */
-					ext++;
-
-					// TODO: Don't rely on file extension.
-					if(strncasecmp(ext, "opus", 4) == 0)
-						convOpus(file, "sdmc:/MUSIC/out.wav");
-					else if(strncasecmp(ext, "flac", 4) == 0)
-						playFlac(file);
-					else if(strncasecmp(ext, "wav", 3) == 0 ||
-							strncasecmp(ext, "aiff", 4) == 0)
+					case FILE_TYPE_WAV:
 						playWav(file);
-					else
-						printf("\nFile type \"%s\" not recognised.", ext);
+						break;
+
+					case FILE_TYPE_FLAC:
+						playFlac(file);
+						break;
+
+					default:
+						printf("Unsupported File type.\n");
 				}
 			}
 
@@ -168,6 +169,73 @@ out:
 
 	gfxExit();
 	return 0;
+}
+
+/**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative.
+ */
+int getFileType(const char *file)
+{
+	FILE* ftest = fopen(file, "rb");
+	int fileSig = 0;
+	enum file_types file_type = FILE_TYPE_ERROR;
+
+	if(file == NULL)
+	{
+		err_print("Opening file failed.");
+		return -1;
+	}
+
+	if(fread(&fileSig, 4, 1, ftest) == 0)
+	{
+		err_print("Unable to read file.");
+		fclose(ftest);
+		return -1;
+	}
+
+	switch(fileSig)
+	{
+		// "RIFF"
+		case 0x46464952:
+			if(fseek(ftest, 4, SEEK_CUR) != 0)
+			{
+				err_print("Unable to seek.");
+				break;
+			}
+
+			// "WAVE"
+			// Check required as AVI file format also uses "RIFF".
+			if(fread(&fileSig, 4, 1, ftest) == 0)
+			{
+				err_print("Unable to read potential WAV file.");
+				break;
+			}
+
+			if(fileSig != 0x45564157)
+				break;
+
+			file_type = FILE_TYPE_WAV;
+			printf("\nFile type is WAV.");
+			break;
+
+		// "fLaC"
+		case 0x43614c66:
+			file_type = FILE_TYPE_FLAC;
+			printf("\nFile type is FLAC.");
+			break;
+
+		// "OggS"
+		case 0x5367674f:
+			file_type = FILE_TYPE_OGG;
+			printf("\nFile type is OGG.");
+			break;
+	}
+
+	fclose(ftest);
+	return file_type;
 }
 
 /**
@@ -207,17 +275,10 @@ int playWav(const char *wav)
 		goto out;
 	}
 
+	/* TODO: No need to read the first number of bytes */
 	if(fread(header, 1, 44, file) == 0)
 	{
 		err_print("Unable to read WAV file.");
-		goto out;
-	}
-
-	if(strncmp(header + 8, "WAVE", 4) == 0)
-		puts("Valid WAV file.");
-	else
-	{
-		puts("Invalid WAV file.");
 		goto out;
 	}
 
