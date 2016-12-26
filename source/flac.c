@@ -46,9 +46,9 @@ int playFlac(const char* in)
 	waveBuf[0].nsamples = drflac_read_s16(pFlac, chunkSize, buffer1) / pFlac->channels;
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-	waveBuf[1].nsamples = drflac_read_s16(pFlac, chunkSize, buffer2) / pFlac->channels;
-	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
+	//waveBuf[1].nsamples = drflac_read_s16(pFlac, chunkSize, buffer2) / pFlac->channels;
+	//waveBuf[1].data_vaddr = &buffer2[0];
+	//ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
 	printf("Playing %s\n", in);
 	/**
@@ -58,7 +58,7 @@ int playFlac(const char* in)
 	while(ndspChnIsPlaying(CHANNEL) == false)
 	{}
 
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
+	while(true || playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
 		u32 kDown;
 		/* Number of bytes read from file.
@@ -87,7 +87,9 @@ int playFlac(const char* in)
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
+			printf("\rBeginning Decode.");
 			read = drflac_read_s16(pFlac, chunkSize, buffer1);
+			printf("\rDone decode.");
 
 			if(read == 0)
 			{
@@ -100,6 +102,7 @@ int playFlac(const char* in)
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
 
+#if 0
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
 			read = drflac_read_s16(pFlac, chunkSize, buffer2);
@@ -114,15 +117,15 @@ int playFlac(const char* in)
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
-
-		DSP_FlushDataCache(buffer1, chunkSize);
-		DSP_FlushDataCache(buffer2, chunkSize);
-
 		// TODO: Remove this printf.
 		// \33[2K clears the current line.
 		printf("\33[2K\rRead: %u\tBuf0: %s\tBuf1: %s", read,
 				waveBuf[0].status == NDSP_WBUF_QUEUED ? "Q" : "P",
 				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Q" : "P");
+#endif
+
+		DSP_FlushDataCache(buffer1, chunkSize);
+		DSP_FlushDataCache(buffer2, chunkSize);
 	}
 
 	printf("\nEnd of file.");
