@@ -92,7 +92,6 @@ int main(int argc, char **argv)
 	while(aptMainLoop())
 	{
 		u32 kDown;
-		char* file = NULL;
 
 		hidScanInput();
 
@@ -106,21 +105,16 @@ int main(int argc, char **argv)
 			break;
 
 		if(kDown & KEY_UP && fileNum < fileMax)
-		{
-			fileNum++;
-			printf("\rSelected file %d   ", fileNum);
-		}
+			printf("\33[2K\rSelected file %d", ++fileNum);
 
 		if(kDown & KEY_DOWN && fileNum > 1)
-		{
-			fileNum--;
-			printf("\rSelected file %d   ", fileNum);
-		}
+			printf("\33[2K\rSelected file %d", --fileNum);
 
 		if(kDown & (KEY_A | KEY_R))
 		{
 			u8 audioFileNum = 0;
 			dp = opendir(AUDIO_FOLDER);
+			char* file = NULL;
 
 			if (dp != NULL)
 			{
@@ -142,26 +136,25 @@ int main(int argc, char **argv)
 					err_print("Constructing file name failed.");
 					file = NULL;
 				}
-			}
-
-			if(file == NULL)
-				err_print("Opening file failed.");
-			else
-			{
-				switch(getFileType(file))
+				else
 				{
-					case FILE_TYPE_WAV:
-						playWav(file);
-						break;
+					switch(getFileType(file))
+					{
+						case FILE_TYPE_WAV:
+							playWav(file);
+							break;
 
-					case FILE_TYPE_FLAC:
-						playFlac(file);
-						break;
+						case FILE_TYPE_FLAC:
+							playFlac(file);
+							break;
 
-					default:
-						printf("Unsupported File type.\n");
+						default:
+							printf("Unsupported File type.\n");
+					}
 				}
 			}
+			else
+				err_print("Unable to open directory.");
 
 			free(file);
 		}
@@ -222,13 +215,13 @@ int getFileType(const char *file)
 				break;
 
 			file_type = FILE_TYPE_WAV;
-			printf("\nFile type is WAV.");
+			printf("File type is WAV.");
 			break;
 
 		// "fLaC"
 		case 0x43614c66:
 			file_type = FILE_TYPE_FLAC;
-			printf("\nFile type is FLAC.");
+			printf("File type is FLAC.");
 			break;
 
 		// "OggS"
