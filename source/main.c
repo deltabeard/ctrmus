@@ -145,6 +145,10 @@ int main(int argc, char **argv)
 							playFlac(file);
 							break;
 
+						case FILE_TYPE_OPUS:
+							playOpus(file);
+							break;
+
 						default:
 							printf("Unsupported File type.\n");
 					}
