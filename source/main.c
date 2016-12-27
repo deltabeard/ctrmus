@@ -243,7 +243,7 @@ int getFileType(const char *file)
  */
 int playWav(const char *wav)
 {
-	FILE	*file	= fopen(wav, "rb");
+	FILE*	file	= fopen(wav, "rb");
 	char	header[45];
 	u32		sample;
 	u8		format;
@@ -333,12 +333,13 @@ int playWav(const char *wav)
 	buffer2 = (s16*) linearAlloc(BUFFER_SIZE);
 
 	fread(buffer1, 1, BUFFER_SIZE, file);
-	fread(buffer2, 1, BUFFER_SIZE, file);
 	waveBuf[0].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[0].data_vaddr = &buffer1[0];
+	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
+
+	fread(buffer2, 1, BUFFER_SIZE, file);
 	waveBuf[1].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
 	printf("Playing %s\n", wav);
@@ -368,7 +369,7 @@ int playWav(const char *wav)
 		if(kDown & KEY_B)
 			break;
 
-		if(kDown & KEY_A)
+		if(kDown & (KEY_A | KEY_R))
 			playing = !playing;
 
 		if(playing == false || lastbuf == true)
@@ -409,12 +410,6 @@ int playWav(const char *wav)
 
 		DSP_FlushDataCache(buffer1, BUFFER_SIZE);
 		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
-
-		// TODO: Remove this printf.
-		// \33[2K clears the current line.
-		printf("\33[2K\rSamp: %lu\tBuf0: %s\tBuf1: %s", read / blockalign,
-				waveBuf[0].status == NDSP_WBUF_QUEUED ? "Q" : "P",
-				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Q" : "P");
 	}
 
 	debug_print("Pos: %lx\n", ndspChnGetSamplePos(CHANNEL));
