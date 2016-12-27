@@ -7,24 +7,27 @@
 * Use the d-pad to select the music file to play, then press A.
 
 ### Controls
-A = Pause/Play or select file when stopped playing.
+### Whilst playing
+A or R = Pause/Play
 
-B = Stop Playing.
+B = Stop
+
+### When stopped
+A or R = Play selected file.
+
+Up and down = Select file.
 
 Start = Return to Homebrew menu (Only when stopped playing).
 
-R Trigger = Select file when stopped playing
-
 ### Features
-* Plays WAV, AIFF files.
+* Plays PCM WAV, AIFF, FLAC files.
 * Pause and play support.
 * Plays music via headphones whilst system is closed.
 
 ### Planned features
 * Playlist support.
 * Repeat and shuffle support.
-* FLAC, and Opus file support.
+* Opus, OGG, MP3 file support.
 * Ability to browse directories.
 * Metadata support.
-
 
