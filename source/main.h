@@ -8,6 +8,14 @@
  */
 
 /**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative.
+ */
+int getFileType(const char *file);
+
+/**
  * Plays a WAV file.
  *
  * \param	file	File location of WAV file.

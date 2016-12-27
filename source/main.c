@@ -18,6 +18,7 @@
 
 #include "main.h"
 #include "trivial_example.h"
+#include "flac.h"
 
 #define BUFFER_SIZE		16 * 1024
 #define AUDIO_FOLDER	"sdmc:/MUSIC/"
@@ -35,14 +36,22 @@
 	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
 			err, strerror(errno)); } while (0)
 
+enum file_types {
+	FILE_TYPE_ERROR = -1,
+	FILE_TYPE_WAV,
+	FILE_TYPE_FLAC,
+	FILE_TYPE_OGG,
+	FILE_TYPE_OPUS
+};
+
 int main(int argc, char **argv)
 {
 	DIR				*dp;
 	struct dirent	*ep;
 	PrintConsole	topScreen;
 	PrintConsole	bottomScreen;
-	u8 fileMax = 0;
-	u8 fileNum = 1;
+	u8				fileMax = 0;
+	u8				fileNum = 1;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreen);
@@ -83,7 +92,6 @@ int main(int argc, char **argv)
 	while(aptMainLoop())
 	{
 		u32 kDown;
-		char* file = NULL;
 
 		hidScanInput();
 
@@ -97,21 +105,16 @@ int main(int argc, char **argv)
 			break;
 
 		if(kDown & KEY_UP && fileNum < fileMax)
-		{
-			fileNum++;
-			printf("\rSelected file %d   ", fileNum);
-		}
+			printf("\33[2K\rSelected file %d", ++fileNum);
 
 		if(kDown & KEY_DOWN && fileNum > 1)
-		{
-			fileNum--;
-			printf("\rSelected file %d   ", fileNum);
-		}
+			printf("\33[2K\rSelected file %d", --fileNum);
 
 		if(kDown & (KEY_A | KEY_R))
 		{
 			u8 audioFileNum = 0;
 			dp = opendir(AUDIO_FOLDER);
+			char* file = NULL;
 
 			if (dp != NULL)
 			{
@@ -125,36 +128,33 @@ int main(int argc, char **argv)
 				if(closedir(dp) != 0)
 					err_print("Closing directory failed.");
 
+				/* TODO: There is an issue with Unicode files here.
+				 * Playing a flac file then a file with a name containing the
+				 * character 'é' will cause the asprint to not work properly. */
 				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
 					file = NULL;
 				}
-			}
-
-			if(file == NULL)
-				err_print("Opening file failed.");
-			else
-			{
-				char* ext = strrchr(file, '.');
-
-				if(ext == NULL)
-					printf("\nUnable to obtain file type.");
 				else
 				{
-					/* To skip the dot */
-					ext++;
+					switch(getFileType(file))
+					{
+						case FILE_TYPE_WAV:
+							playWav(file);
+							break;
 
-					// TODO: Don't rely on file extension.
-					if(strncasecmp(ext, "opus", 4) == 0)
-						convOpus(file, "sdmc:/MUSIC/out.wav");
-					else if(strncasecmp(ext, "wav", 3) == 0 ||
-							strncasecmp(ext, "aiff", 4) == 0)
-						playWav(file);
-					else
-						printf("\nFile type \"%s\" not recognised.", ext);
+						case FILE_TYPE_FLAC:
+							playFlac(file);
+							break;
+
+						default:
+							printf("Unsupported File type.\n");
+					}
 				}
 			}
+			else
+				err_print("Unable to open directory.");
 
 			free(file);
 		}
@@ -168,6 +168,74 @@ out:
 }
 
 /**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative.
+ */
+int getFileType(const char *file)
+{
+	FILE* ftest = fopen(file, "rb");
+	int fileSig = 0;
+	enum file_types file_type = FILE_TYPE_ERROR;
+
+	if(ftest == NULL)
+	{
+		err_print("Opening file failed.");
+		printf("file: %s\n", file);
+		return -1;
+	}
+
+	if(fread(&fileSig, 4, 1, ftest) == 0)
+	{
+		err_print("Unable to read file.");
+		fclose(ftest);
+		return -1;
+	}
+
+	switch(fileSig)
+	{
+		// "RIFF"
+		case 0x46464952:
+			if(fseek(ftest, 4, SEEK_CUR) != 0)
+			{
+				err_print("Unable to seek.");
+				break;
+			}
+
+			// "WAVE"
+			// Check required as AVI file format also uses "RIFF".
+			if(fread(&fileSig, 4, 1, ftest) == 0)
+			{
+				err_print("Unable to read potential WAV file.");
+				break;
+			}
+
+			if(fileSig != 0x45564157)
+				break;
+
+			file_type = FILE_TYPE_WAV;
+			printf("File type is WAV.");
+			break;
+
+		// "fLaC"
+		case 0x43614c66:
+			file_type = FILE_TYPE_FLAC;
+			printf("File type is FLAC.");
+			break;
+
+		// "OggS"
+		case 0x5367674f:
+			file_type = FILE_TYPE_OGG;
+			printf("\nFile type is OGG.");
+			break;
+	}
+
+	fclose(ftest);
+	return file_type;
+}
+
+/**
  * Plays a WAV file.
  *
  * \param	file	File location of WAV file.
@@ -175,7 +243,7 @@ out:
  */
 int playWav(const char *wav)
 {
-	FILE	*file	= fopen(wav, "rb");
+	FILE*	file	= fopen(wav, "rb");
 	char	header[45];
 	u32		sample;
 	u8		format;
@@ -204,17 +272,10 @@ int playWav(const char *wav)
 		goto out;
 	}
 
+	/* TODO: No need to read the first number of bytes */
 	if(fread(header, 1, 44, file) == 0)
 	{
 		err_print("Unable to read WAV file.");
-		goto out;
-	}
-
-	if(strncmp(header + 8, "WAVE", 4) == 0)
-		puts("Valid WAV file.");
-	else
-	{
-		puts("Invalid WAV file.");
 		goto out;
 	}
 
@@ -272,12 +333,13 @@ int playWav(const char *wav)
 	buffer2 = (s16*) linearAlloc(BUFFER_SIZE);
 
 	fread(buffer1, 1, BUFFER_SIZE, file);
-	fread(buffer2, 1, BUFFER_SIZE, file);
 	waveBuf[0].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[0].data_vaddr = &buffer1[0];
+	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
+
+	fread(buffer2, 1, BUFFER_SIZE, file);
 	waveBuf[1].nsamples = BUFFER_SIZE / blockalign;
 	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
 	printf("Playing %s\n", wav);
@@ -307,7 +369,7 @@ int playWav(const char *wav)
 		if(kDown & KEY_B)
 			break;
 
-		if(kDown & KEY_A)
+		if(kDown & (KEY_A | KEY_R))
 			playing = !playing;
 
 		if(playing == false || lastbuf == true)
@@ -348,12 +410,6 @@ int playWav(const char *wav)
 
 		DSP_FlushDataCache(buffer1, BUFFER_SIZE);
 		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
-
-		// TODO: Remove this printf.
-		// \33[2K clears the current line.
-		printf("\33[2K\rSamp: %lu\tBuf0: %s\tBuf1: %s", read / blockalign,
-				waveBuf[0].status == NDSP_WBUF_QUEUED ? "Q" : "P",
-				waveBuf[1].status == NDSP_WBUF_QUEUED ? "Q" : "P");
 	}
 
 	debug_print("Pos: %lx\n", ndspChnGetSamplePos(CHANNEL));
