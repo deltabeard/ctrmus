@@ -17,10 +17,10 @@
 #include <string.h>
 
 #include "main.h"
-#include "trivial_example.h"
+#include "opus.h"
 #include "flac.h"
 
-#define BUFFER_SIZE		16 * 1024
+#define BUFFER_SIZE		(16 * 1024)
 #define AUDIO_FOLDER	"sdmc:/MUSIC/"
 #define CHANNEL			0x08
 
@@ -308,12 +308,14 @@ int playWav(const char *wav)
 	switch(bitness)
 	{
 		case 8:
-			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM8 : NDSP_FORMAT_MONO_PCM8;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM8 :
+				NDSP_FORMAT_MONO_PCM8;
 			puts("8bit playback disabled.");
 			goto out;
 
 		case 16:
-			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16;
+			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM16 :
+				NDSP_FORMAT_MONO_PCM16;
 			break;
 
 		default:

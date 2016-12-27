@@ -3,7 +3,7 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <../source/dr_libs/dr_flac.h>
 
-#define SAMPLES_TO_READ	16 * 1024
+#define SAMPLES_TO_READ	(16 * 1024)
 #define CHANNEL			0x08
 
 int playFlac(const char* in)
