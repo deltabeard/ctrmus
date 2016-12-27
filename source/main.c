@@ -223,8 +223,17 @@ int getFileType(const char *file)
 
 		// "OggS"
 		case 0x5367674f:
-			file_type = FILE_TYPE_OGG;
-			printf("\nFile type is OGG.");
+			if(isOpus(file) == 0)
+			{
+				printf("\nFile type is Opus.");
+				file_type = FILE_TYPE_OPUS;
+			}
+			else
+			{
+				file_type = FILE_TYPE_OGG;
+				printf("\nFile type is OGG.");
+			}
+
 			break;
 	}
 
