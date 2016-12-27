@@ -27,11 +27,6 @@
 /* Adds extra debugging text */
 #define DEBUG 0
 
-/* From: http://stackoverflow.com/a/1644898 */
-#define debug_print(fmt, ...) \
-	do { if (DEBUG) fprintf(stderr, "%d:%s(): " fmt, __LINE__,\
-			__func__, __VA_ARGS__); } while (0)
-
 #define err_print(err) \
 	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
 			err, strerror(errno)); } while (0)
@@ -128,9 +123,11 @@ int main(int argc, char **argv)
 				if(closedir(dp) != 0)
 					err_print("Closing directory failed.");
 
-				/* TODO: There is an issue with Unicode files here.
+				/**
+				 * TODO: There is an issue with Unicode files here.
 				 * Playing a flac file then a file with a name containing the
-				 * character 'é' will cause the asprint to not work properly. */
+				 * character 'é' will cause the asprint to not work properly.
+				 */
 				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
@@ -350,8 +347,7 @@ int playWav(const char *wav)
 	 * There may be a chance that the music has not started by the time we get
 	 * to the while loop. So we ensure that music has started here.
 	 */
-	while(ndspChnIsPlaying(CHANNEL) == false)
-	{}
+	while(ndspChnIsPlaying(CHANNEL) == false);
 
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
@@ -414,9 +410,6 @@ int playWav(const char *wav)
 		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
 	}
 
-	debug_print("Pos: %lx\n", ndspChnGetSamplePos(CHANNEL));
-	debug_print("%s\n", "Before clear");
-
 	ndspChnWaveBufClear(CHANNEL);
 
 out:
@@ -428,92 +421,3 @@ out:
 	linearFree(buffer2);
 	return 0;
 }
-
-#if 0
-int playOpus(const char* opus)
-{
-	OggOpusFile	*of;
-	int			ret;
-	int			output_seekable;
-	FILE*		outfile;
-	ogg_int64_t pcm_offset;
-	ogg_int64_t pcm_print_offset;
-	ogg_int64_t nsamples;
-	opus_int32  bitrate = 0;
-	int         prev_li;
-
-	printf("Size: %u\n", sizeof(of));
-	of = op_open_file(opus, &ret);
-	if(of == NULL)
-	{
-		fprintf(stderr,"Failed to open file '%s': %i\n", opus, ret);
-		return -1;
-	}
-
-	outfile = fopen("sdmc:/MUSIC/out.wav", "wb+");
-	if(outfile == NULL){
-		fprintf(stderr,"Failed to open output file : %i\n",ret);
-		return EXIT_FAILURE;
-	}
-
-	pcm_offset = op_pcm_tell(of);
-	if(pcm_offset != 0){
-		fprintf(stderr, "Non-zero starting PCM offset: %li\n", (long)pcm_offset);
-	}
-
-	printf("pcm_offset: %li\n", pcm_offset);
-	pcm_print_offset = pcm_offset - 48000;
-
-	for(;;){
-		ogg_int64_t   next_pcm_offset;
-		opus_int16*    pcm = (opus_int16*)malloc(120*48*2*sizeof(opus_int16));
-		unsigned char* out = (unsigned char*)malloc(120*48*2*2*sizeof(unsigned char));
-		int           li;
-		int           si;
-		static int	count = 0;
-
-		ret = op_read_stereo(of, pcm, sizeof(pcm)/sizeof(*pcm));
-		if(ret < 0)
-		{
-			fprintf(stderr, "\nError decoding '%s': %i\n", opus, ret);
-			ret = EXIT_FAILURE;
-			break;
-		}
-		printf("\rCount: %d", count++);
-
-		next_pcm_offset=op_pcm_tell(of);
-		if(pcm_offset+ret!=next_pcm_offset){
-			fprintf(stderr,"\nPCM offset gap! %li+%i!=%li\n",
-					(long)pcm_offset,ret,(long)next_pcm_offset);
-		}
-		pcm_offset=next_pcm_offset;
-		if(ret<=0){
-			ret=EXIT_SUCCESS;
-			break;
-		}
-		/*Ensure the data is little-endian before writing it out.*/
-		for(si=0;si<2*ret;si++){
-			out[2*si+0]=(unsigned char)(pcm[si]&0xFF);
-			out[2*si+1]=(unsigned char)(pcm[si]>>8&0xFF);
-		}
-		if(!fwrite(out,sizeof(*out)*4*ret,1,outfile)){
-			fprintf(stderr,"\nError writing decoded audio data: %s\n",
-					strerror(errno));
-			ret=EXIT_FAILURE;
-			break;
-		}
-		nsamples+=ret;
-		prev_li=li;
-
-		free(pcm);
-	}
-
-	if(ret==EXIT_SUCCESS){
-		fprintf(stderr,"\nDone: played ");
-		fprintf(stderr," (%li samples @ 48 kHz).\n",(long)nsamples);
-	}
-	fclose(outfile);
-	op_free(of);
-	return ret;
-}
-#endif

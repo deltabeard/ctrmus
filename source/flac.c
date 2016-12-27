@@ -33,14 +33,17 @@ int playFlac(const char* in)
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, pFlac->sampleRate);
-	ndspChnSetFormat(CHANNEL, pFlac->channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
+	ndspChnSetFormat(CHANNEL, pFlac->channels == 2 ? NDSP_FORMAT_STEREO_PCM16 :
+			NDSP_FORMAT_MONO_PCM16);
 
 	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples = drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer1) / pFlac->channels;
+	waveBuf[0].nsamples =
+		drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer1) / pFlac->channels;
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 
-	waveBuf[1].nsamples = drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer2) / pFlac->channels;
+	waveBuf[1].nsamples =
+		drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer2) / pFlac->channels;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
@@ -49,12 +52,12 @@ int playFlac(const char* in)
 	 * There may be a chance that the music has not started by the time we get
 	 * to the while loop. So we ensure that music has started here.
 	 */
-	while(ndspChnIsPlaying(CHANNEL) == false)
-	{}
+	while(ndspChnIsPlaying(CHANNEL) == false);
 
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
 		u32 kDown;
+
 		/* Number of bytes read from file.
 		 * Static only for the purposes of the printf debug at the bottom.
 		 */

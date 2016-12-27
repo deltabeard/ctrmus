@@ -1,1 +1,1 @@
-int convOpus(const char* in, const char *out);
+int playOpus(const char* in);
