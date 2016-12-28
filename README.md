@@ -1,4 +1,4 @@
-<h1 align="center">ctrmus</h1>
+<h1 align="center"><img src="http://i.imgur.com/pWWyVMO.png" alt="ctrmus icon"><br>ctrmus</h1>
 <p align="center">A music player for the Nintendo 3DS</p>
 
 ### Instructions
