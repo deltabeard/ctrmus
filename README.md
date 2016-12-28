@@ -20,14 +20,14 @@ Up and down = Select file.
 Start = Return to Homebrew menu (Only when stopped playing).
 
 ### Features
-* Plays PCM WAV, AIFF, FLAC files.
+* Plays PCM WAV, AIFF, FLAC, Opus files.
 * Pause and play support.
 * Plays music via headphones whilst system is closed.
 
 ### Planned features
 * Playlist support.
 * Repeat and shuffle support.
-* Opus, OGG, MP3 file support.
+* OGG, MP3 file support.
 * Ability to browse directories.
 * Metadata support.
 
