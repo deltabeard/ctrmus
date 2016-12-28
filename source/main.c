@@ -99,11 +99,22 @@ int main(int argc, char **argv)
 		if(kDown & KEY_START)
 			break;
 
-		if(kDown & KEY_UP && fileNum < fileMax)
-			printf("\33[2K\rSelected file %d", ++fileNum);
+		if(kDown & KEY_UP)
+		{
+			printf("\33[2K\rSelected file %d",
+					++fileNum > fileMax ? 1 : fileNum);
+		}
 
-		if(kDown & KEY_DOWN && fileNum > 1)
-			printf("\33[2K\rSelected file %d", --fileNum);
+		if(kDown & KEY_DOWN)
+		{
+			printf("\33[2K\rSelected file %d",
+					--fileNum == 0 ? fileMax : fileNum);
+		}
+
+		if(fileNum == 0)
+			fileNum = fileMax;
+		else if(fileNum > fileMax)
+			fileNum = 1;
 
 		if(kDown & (KEY_A | KEY_R))
 		{

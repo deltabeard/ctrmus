@@ -11,8 +11,8 @@
 int playOpus(const char* in)
 {
 	int				err = 0;
-	s16*			buffer1 = linearAlloc(SAMPLES_TO_READ * sizeof(s16));
-	s16*			buffer2 = linearAlloc(SAMPLES_TO_READ * sizeof(s16));
+	int16_t*		buffer1 = linearAlloc(SAMPLES_TO_READ * sizeof(int16_t));
+	int16_t*		buffer2 = linearAlloc(SAMPLES_TO_READ * sizeof(int16_t));
 	ndspWaveBuf 	waveBuf[2];
 	bool			playing = true;
 	bool			lastbuf = false;
@@ -47,17 +47,16 @@ int playOpus(const char* in)
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, opusHead->input_sample_rate);
-	ndspChnSetFormat(CHANNEL, opusHead->channel_count == 2 ? NDSP_FORMAT_STEREO_PCM16 :
-			NDSP_FORMAT_MONO_PCM16);
+	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
 
 	memset(waveBuf, 0, sizeof(waveBuf));
 	waveBuf[0].nsamples =
-		fillOpusBuffer(opusFile, SAMPLES_TO_READ, buffer1) / opusHead->channel_count;
+		fillOpusBuffer(opusFile, SAMPLES_TO_READ, buffer1) / 2;
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 
 	waveBuf[1].nsamples =
-		fillOpusBuffer(opusFile, SAMPLES_TO_READ, buffer1) / opusHead->channel_count;
+		fillOpusBuffer(opusFile, SAMPLES_TO_READ, buffer2) / 2;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
@@ -155,19 +154,16 @@ out:
 uint64_t fillOpusBuffer(OggOpusFile* opusFile, uint64_t samplesToRead,
 		int16_t* bufferOut)
 {
-	uint64_t	samplesRead = 0;
-	opus_int16*	pcm = malloc(120 * 48 * 2 * sizeof(opus_int16));
-	opus_int16*	out = malloc(120 * 48 * 2 * 2 * sizeof(opus_int16));
+	uint64_t		samplesRead = 0;
 
 	while(samplesToRead > 0)
 	{
-		uint64_t samplesJustRead = op_read_stereo(opusFile, pcm,
+		uint64_t samplesJustRead = op_read_stereo(opusFile, bufferOut,
 				samplesToRead > 120*48*2 ? 120*48*2 : samplesToRead);
 
 		if(samplesJustRead < 0)
 		{
 			printf("\nFatal error decoding Opus: %llu.", samplesJustRead);
-			free(pcm);
 			return 0;
 		}
 		else if(samplesJustRead == 0)
@@ -176,23 +172,11 @@ uint64_t fillOpusBuffer(OggOpusFile* opusFile, uint64_t samplesToRead,
 			break;
 		}
 
-		for(int si = 0; si < 2 * samplesJustRead; si++)
-		{
-			out[2*si*0] = (pcm[si] & 0xFF);
-			out[2*si*1] = (pcm[si] >> 8&0xFF);
-		}
-
-		for(uint64_t i = 0; i < samplesJustRead * 2; ++i)
-		{
-			bufferOut[i] = out[i];
-		}
-
 		samplesRead += samplesJustRead * 2;
 		samplesToRead -= samplesJustRead * 2;
 		bufferOut += samplesJustRead * 2;
 	}
 
-	free(pcm);
 	return samplesRead;
 }
 
