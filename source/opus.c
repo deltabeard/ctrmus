@@ -1,12 +1,11 @@
 #include <3ds.h>
-#include <opus/opusfile.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "all.h"
 #include "opus.h"
 
 #define SAMPLES_TO_READ	(32 * 1024)
-#define CHANNEL			0x08
 
 int playOpus(const char* in)
 {
