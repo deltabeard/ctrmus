@@ -131,8 +131,6 @@ int playOpus(const char* in)
 		DSP_FlushDataCache(buffer2, SAMPLES_TO_READ * sizeof(s16));
 	}
 
-	printf("\nEnd of file.");
-
 out:
 	printf("\nStopping Opus playback.\n");
 	ndspChnWaveBufClear(CHANNEL);
@@ -154,7 +152,7 @@ out:
 uint64_t fillOpusBuffer(OggOpusFile* opusFile, uint64_t samplesToRead,
 		int16_t* bufferOut)
 {
-	uint64_t		samplesRead = 0;
+	uint64_t samplesRead = 0;
 
 	while(samplesToRead > 0)
 	{

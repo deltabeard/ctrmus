@@ -400,6 +400,8 @@ int playWav(const char *wav)
 			continue;
 		}
 
+		printf("\33[2K\r");
+
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
 			read = fread(buffer1, 1, BUFFER_SIZE, file);
