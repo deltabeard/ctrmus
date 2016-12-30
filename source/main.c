@@ -122,14 +122,6 @@ int main(int argc, char **argv)
 						break;
 				}
 
-				if(closedir(dp) != 0)
-					err_print("Closing directory failed.");
-
-				/**
-				 * TODO: There is an issue with Unicode files here.
-				 * Playing a flac file then a file with a name containing the
-				 * character 'é' will cause the asprint to not work properly.
-				 */
 				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
@@ -155,6 +147,9 @@ int main(int argc, char **argv)
 							printf("Unsupported File type.\n");
 					}
 				}
+
+				if(closedir(dp) != 0)
+					err_print("Closing directory failed.");
 			}
 			else
 				err_print("Unable to open directory.");
