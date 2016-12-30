@@ -49,7 +49,7 @@ SOURCE_DIRS := source
 EXTRA_OUTPUT_FILES :=
 
 LIBRARY_DIRS := $(DEVKITPRO)/libctru $(DEVKITPRO)/portlibs/armv6k
-LIBRARIES := ctru opusfile opus ogg m
+LIBRARIES := sftd freetype opusfile opus ogg sf2d citro3d ctru m
 
 BUILD_FLAGS :=
 RUN_FLAGS :=

@@ -20,7 +20,10 @@
 #include "opus.h"
 #include "wav.h"
 
-#define AUDIO_FOLDER "sdmc:/MUSIC/"
+/* Default folder */
+#define TOP_FOLDER		"sdmc:/"
+/* Maximum number of lines that can be displayed */
+#define	MAX_LIST		28
 
 enum file_types {
 	FILE_TYPE_ERROR = -1,
@@ -36,38 +39,22 @@ int main(int argc, char **argv)
 	struct dirent	*ep;
 	PrintConsole	topScreen;
 	PrintConsole	bottomScreen;
-	u8				fileMax = 0;
-	u8				fileNum = 1;
+	int				fileMax;
+	int				fileNum = 0;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreen);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
-	consoleSelect(&topScreen);
-
-	puts("Scanning audio directory.");
-
-	dp = opendir(AUDIO_FOLDER);
-	if(dp != NULL)
-	{
-		while((ep = readdir(dp)) != NULL)
-			printf("%d: %s\n", ++fileMax, ep->d_name);
-
-		if(closedir(dp) != 0)
-			err_print("Closing directory failed.");
-	}
-	else
-	{
-		err_print("Opening directory failed.");
-		goto out;
-	}
-
-	if(fileMax == 0)
-	{
-		err_print("No files in audio folder.");
-		goto out;
-	}
-
 	consoleSelect(&bottomScreen);
+
+	if((fileMax = listDir(TOP_FOLDER, 0, MAX_LIST)) < 0)
+	{
+		err_print("Unable to list directory.");
+		goto out;
+	}
+
+	consoleSelect(&topScreen);
+	puts("Queue");
 
 	/**
 	 * This allows for music to continue playing through the headphones whilst
@@ -92,34 +79,35 @@ int main(int argc, char **argv)
 
 		if(kDown & KEY_UP)
 		{
-			printf("\33[2K\rSelected file %d",
-					++fileNum > fileMax ? 1 : fileNum);
+			if(fileNum < fileMax)
+				fileNum++;
 		}
 
 		if(kDown & KEY_DOWN)
 		{
-			printf("\33[2K\rSelected file %d",
-					--fileNum == 0 ? fileMax : fileNum);
+			if(fileNum > 0)
+				fileNum--;
 		}
 
-		if(fileNum == 0)
-			fileNum = fileMax;
-		else if(fileNum > fileMax)
-			fileNum = 1;
+		if(kDown & (KEY_DOWN | KEY_UP))
+		{
+			printf("\33[2K\rSelected file %d", fileNum);
+		}
 
 		if(kDown & (KEY_A | KEY_R))
 		{
-			u8 audioFileNum = 0;
-			dp = opendir(AUDIO_FOLDER);
+			int audioFileNum = 0;
+			dp = opendir(TOP_FOLDER);
 			char* file = NULL;
 
 			if (dp != NULL)
 			{
 				while((ep = readdir(dp)) != NULL)
 				{
-					audioFileNum++;
 					if(audioFileNum == fileNum)
 						break;
+
+					audioFileNum++;
 				}
 
 				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
@@ -163,6 +151,65 @@ out:
 
 	gfxExit();
 	return 0;
+}
+
+/**
+ * List directory.
+ *
+ * \param	dir		Path of directory.
+ * \param	from	First entry in directory to list.
+ * \param	max		Maximum number of entries to list. Must be > 0.
+ * \return			Number of entries listed or negative on error.
+ */
+int listDir(const char *dir, int from, int max)
+{
+	DIR				*dp;
+	struct dirent	*ep;
+	int				fileNum = 0;
+	int				countChr = 0;
+	int				listed = 0;
+
+	if((dp = opendir(dir)) == NULL)
+		goto err;
+
+	/* Count number of occurrences of character in string. */
+	for(int i = 0; i < strlen(dir); i++)
+	{
+		if(dir[i] == '/')
+			countChr++;
+	}
+
+	/* There should always be one slash. So error out here. */
+	if(countChr < 1)
+	{
+		errno = ENOMSG;
+		goto err;
+	}
+
+	if(countChr > 1 && from == 0)
+		puts("../");
+
+	while((ep = readdir(dp)) != NULL)
+	{
+		fileNum++;
+
+		if(fileNum < from)
+			continue;
+
+		if(fileNum + from == max)
+			break;
+
+		listed++;
+		printf(" %.48s%s\n", ep->d_name, ep->d_type == DT_DIR ? "/" : "");
+	}
+
+	if(closedir(dp) != 0)
+		goto err;
+
+	return listed;
+
+err:
+	return -1;
 }
 
 /**

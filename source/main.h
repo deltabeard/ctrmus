@@ -8,17 +8,19 @@
  */
 
 /**
+ * List directory.
+ *
+ * \param	dir		Path of directory.
+ * \param	from	First entry in directory to list.
+ * \param	max		Maximum number of entries to list. Must be > 0.
+ * \return			Number of entries listed or negative on error.
+ */
+int listDir(const char *dir, int from, int max);
+
+/**
  * Obtains file type.
  *
  * \param	file	File location.
  * \return			File type, else negative.
  */
 int getFileType(const char *file);
-
-/**
- * Plays a WAV file.
- *
- * \param	file	File location of WAV file.
- * \return			Zero if successful, else failure.
- */
-int playWav(const char *wav);
