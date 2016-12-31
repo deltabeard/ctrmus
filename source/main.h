@@ -8,14 +8,14 @@
  */
 
 /**
- * List directory.
+ * List current directory.
  *
- * \param	dir		Path of directory.
  * \param	from	First entry in directory to list.
  * \param	max		Maximum number of entries to list. Must be > 0.
+ * \param	select	File to show as selected. Must be > 0.
  * \return			Number of entries listed or negative on error.
  */
-int listDir(const char *dir, int from, int max);
+int listDir(int from, int max, int select);
 
 /**
  * Obtains file type.

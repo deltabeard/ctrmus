@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "all.h"
 #include "flac.h"
@@ -21,7 +22,7 @@
 #include "wav.h"
 
 /* Default folder */
-#define TOP_FOLDER		"sdmc:/"
+#define DEFAULT_DIR		"sdmc:/"
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		28
 
@@ -35,26 +36,28 @@ enum file_types {
 
 int main(int argc, char **argv)
 {
-	DIR				*dp;
-	struct dirent	*ep;
 	PrintConsole	topScreen;
 	PrintConsole	bottomScreen;
 	int				fileMax;
 	int				fileNum = 0;
+	int				from = 0;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreen);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 	consoleSelect(&bottomScreen);
 
-	if((fileMax = listDir(TOP_FOLDER, 0, MAX_LIST)) < 0)
+	chdir(DEFAULT_DIR);
+	chdir("MUSIC");
+	if((fileMax = listDir(from, MAX_LIST, 0)) < 0)
 	{
 		err_print("Unable to list directory.");
 		goto out;
 	}
 
 	consoleSelect(&topScreen);
-	puts("Queue");
+	puts("Playlist");
+	consoleSelect(&bottomScreen);
 
 	/**
 	 * This allows for music to continue playing through the headphones whilst
@@ -79,44 +82,92 @@ int main(int argc, char **argv)
 
 		if(kDown & KEY_UP)
 		{
-			if(fileNum < fileMax)
-				fileNum++;
-		}
-
-		if(kDown & KEY_DOWN)
-		{
 			if(fileNum > 0)
 				fileNum--;
 		}
 
+		if(kDown & KEY_DOWN)
+		{
+			if(fileNum < fileMax)
+				fileNum++;
+		}
+
 		if(kDown & (KEY_DOWN | KEY_UP))
 		{
-			printf("\33[2K\rSelected file %d", fileNum);
+			consoleClear();
+			if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+			{
+				err_print("Unable to list directory.");
+			}
+		}
+
+		if((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0))
+		{
+			if(chdir("..") != 0)
+				err_print("chdir");
+
+			consoleClear();
+			if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+			{
+				err_print("Unable to list directory.");
+			}
+
+			continue;
 		}
 
 		if(kDown & (KEY_A | KEY_R))
 		{
-			int audioFileNum = 0;
-			dp = opendir(TOP_FOLDER);
-			char* file = NULL;
+			int				audioFileNum = 0;
+			DIR				*dp;
+			struct dirent	*ep;
+			char*			wd = getcwd(NULL, 0);
+
+			/* TODO: Error out properly */
+			if(wd == NULL)
+			{
+				err_print("wd");
+				goto out;
+			}
+
+			dp = opendir(wd);
 
 			if (dp != NULL)
 			{
+				char* file = NULL;
+
 				while((ep = readdir(dp)) != NULL)
 				{
-					if(audioFileNum == fileNum)
+					if(audioFileNum == fileNum - 1)
 						break;
 
 					audioFileNum++;
 				}
 
-				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
+				if(ep->d_type == DT_DIR)
+				{
+					/* file not allocated yet, so no need to clear it */
+					if(chdir(ep->d_name) != 0)
+						err_print("chdir");
+
+					fileNum = 0;
+					consoleClear();
+					if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+					{
+						err_print("Unable to list directory.");
+					}
+
+					free(wd);
+					continue;
+				}
+
+				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
 					file = NULL;
 				}
 				else
 				{
+					consoleSelect(&topScreen);
 					switch(getFileType(file))
 					{
 						case FILE_TYPE_WAV:
@@ -132,9 +183,15 @@ int main(int argc, char **argv)
 							break;
 
 						default:
+							consoleSelect(&bottomScreen);
 							printf("Unsupported File type.\n");
 					}
 				}
+
+				consoleSelect(&bottomScreen);
+
+				free(file);
+				free(wd);
 
 				if(closedir(dp) != 0)
 					err_print("Closing directory failed.");
@@ -142,40 +199,59 @@ int main(int argc, char **argv)
 			else
 				err_print("Unable to open directory.");
 
-			free(file);
 		}
 	}
 
 out:
 	puts("Exiting...");
 
+	/* Catch */
+	while(true)
+	{
+		u32 kDown;
+
+		hidScanInput();
+		kDown = hidKeysDown();
+
+		if(kDown & KEY_START)
+			break;
+	}
+
 	gfxExit();
 	return 0;
 }
 
 /**
- * List directory.
+ * List current directory.
  *
- * \param	dir		Path of directory.
  * \param	from	First entry in directory to list.
  * \param	max		Maximum number of entries to list. Must be > 0.
+ * \param	select	File to show as selected. Must be > 0.
  * \return			Number of entries listed or negative on error.
  */
-int listDir(const char *dir, int from, int max)
+int listDir(int from, int max, int select)
 {
 	DIR				*dp;
 	struct dirent	*ep;
 	int				fileNum = 0;
 	int				countChr = 0;
 	int				listed = 0;
+	char*			wd = getcwd(NULL, 0);
 
-	if((dp = opendir(dir)) == NULL)
+	if(wd == NULL)
 		goto err;
 
+	/* TODO: Remove debug */
+	printf("Dir: %.30s\n", wd);
+
+	if((dp = opendir(wd)) == NULL)
+		goto err;
+
+#if 0
 	/* Count number of occurrences of character in string. */
-	for(int i = 0; i < strlen(dir); i++)
+	for(int i = 0; wd[i] != '\0'; i++)
 	{
-		if(dir[i] == '/')
+		if(wd[i] == '/')
 			countChr++;
 	}
 
@@ -187,7 +263,9 @@ int listDir(const char *dir, int from, int max)
 	}
 
 	if(countChr > 1 && from == 0)
-		puts("../");
+		printf("%c../\n", select == 0 ? '>' : ' ');
+#endif
+	printf("%c../\n", select == 0 ? '>' : ' ');
 
 	while((ep = readdir(dp)) != NULL)
 	{
@@ -200,16 +278,23 @@ int listDir(const char *dir, int from, int max)
 			break;
 
 		listed++;
-		printf(" %.48s%s\n", ep->d_name, ep->d_type == DT_DIR ? "/" : "");
+
+		printf("%c%.38s%s\n",
+				select == fileNum ? '>' : ' ',
+				ep->d_name,
+				ep->d_type == DT_DIR ? "/" : "");
 	}
 
 	if(closedir(dp) != 0)
 		goto err;
 
+out:
+	free(wd);
 	return listed;
 
 err:
-	return -1;
+	listed = -1;
+	goto out;
 }
 
 /**
