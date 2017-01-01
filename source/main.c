@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	if(listDir(from, MAX_LIST, 0) < 0)
 	{
 		err_print("Unable to list directory.");
-		goto out;
+		goto err;
 	}
 
 	fileMax = getNumberFiles();
@@ -98,10 +98,6 @@ int main(int argc, char **argv)
 				from++;
 		}
 
-		consoleSelect(&topScreen);
-		printf("\rNum: %d, from: %d, max: %d    ", fileNum, from, fileMax);
-		consoleSelect(&bottomScreen);
-
 		if(kDown & (KEY_DOWN | KEY_UP))
 		{
 			consoleClear();
@@ -143,7 +139,7 @@ int main(int argc, char **argv)
 			if(wd == NULL)
 			{
 				err_print("wd");
-				goto out;
+				goto err;
 			}
 
 			dp = opendir(wd);
@@ -218,14 +214,18 @@ int main(int argc, char **argv)
 			}
 			else
 				err_print("Unable to open directory.");
-
 		}
 	}
 
 out:
 	puts("Exiting...");
 
-	/* Catch */
+	gfxExit();
+	return 0;
+
+err:
+	puts("A fatal error occurred. Press START to exit.");
+
 	while(true)
 	{
 		u32 kDown;
@@ -237,8 +237,7 @@ out:
 			break;
 	}
 
-	gfxExit();
-	return 0;
+	goto out;
 }
 
 /**
@@ -254,43 +253,19 @@ int listDir(int from, int max, int select)
 	DIR				*dp;
 	struct dirent	*ep;
 	int				fileNum = 0;
-	int				countChr = 0;
 	int				listed = 0;
 	char*			wd = getcwd(NULL, 0);
 
 	if(wd == NULL)
 		goto err;
 
-	/* TODO: Remove debug */
 	printf("Dir: %.30s\n", wd);
 
 	if((dp = opendir(wd)) == NULL)
 		goto err;
 
-#if 0
-	/* Count number of occurrences of character in string. */
-	for(int i = 0; wd[i] != '\0'; i++)
-	{
-		if(wd[i] == '/')
-			countChr++;
-	}
-
-	/* There should always be one slash. So error out here. */
-	if(countChr < 1)
-	{
-		errno = ENOMSG;
-		goto err;
-	}
-
-	if(countChr > 1 && from == 0)
-		printf("%c../\n", select == 0 ? '>' : ' ');
-#endif
 	if(from == 0)
-	{
 		printf("%c../\n", select == 0 ? '>' : ' ');
-		/* Compensate for the fact that there will be one more line */
-		//max++;
-	}
 
 	while((ep = readdir(dp)) != NULL)
 	{
