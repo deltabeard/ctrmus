@@ -1,12 +1,11 @@
 #include <3ds.h>
-#include <opus/opusfile.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "all.h"
 #include "opus.h"
 
 #define SAMPLES_TO_READ	(32 * 1024)
-#define CHANNEL			0x08
 
 int playOpus(const char* in)
 {
@@ -87,15 +86,13 @@ int playOpus(const char* in)
 			break;
 
 		if(kDown & (KEY_A | KEY_R))
-			playing = !playing;
-
-		if(playing == false || lastbuf == true)
 		{
-			printf("\33[2K\rPaused");
-			continue;
+			playing = !playing;
+			printf("\33[2K\r%s", playing == false ? "Paused" : "");
 		}
 
-		printf("\33[2K\r");
+		if(playing == false || lastbuf == true)
+			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{

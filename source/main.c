@@ -9,27 +9,22 @@
 
 #include <3ds.h>
 #include <dirent.h>
-#include <errno.h>
-#include <opus/opusfile.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#include "all.h"
+#include "flac.h"
 #include "main.h"
 #include "opus.h"
-#include "flac.h"
+#include "wav.h"
 
-#define BUFFER_SIZE		(16 * 1024)
-#define AUDIO_FOLDER	"sdmc:/MUSIC/"
-#define CHANNEL			0x08
-
-/* Adds extra debugging text */
-#define DEBUG 0
-
-#define err_print(err) \
-	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
-			err, strerror(errno)); } while (0)
+/* Default folder */
+#define DEFAULT_DIR		"sdmc:/"
+/* Maximum number of lines that can be displayed */
+#define	MAX_LIST		28
 
 enum file_types {
 	FILE_TYPE_ERROR = -1,
@@ -41,41 +36,29 @@ enum file_types {
 
 int main(int argc, char **argv)
 {
-	DIR				*dp;
-	struct dirent	*ep;
 	PrintConsole	topScreen;
 	PrintConsole	bottomScreen;
-	u8				fileMax = 0;
-	u8				fileNum = 1;
+	int				fileMax;
+	int				fileNum = 0;
+	int				from = 0;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreen);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
+	consoleSelect(&bottomScreen);
+
+	chdir(DEFAULT_DIR);
+	chdir("MUSIC");
+	if(listDir(from, MAX_LIST, 0) < 0)
+	{
+		err_print("Unable to list directory.");
+		goto err;
+	}
+
+	fileMax = getNumberFiles();
+
 	consoleSelect(&topScreen);
-
-	puts("Scanning audio directory.");
-
-	dp = opendir(AUDIO_FOLDER);
-	if(dp != NULL)
-	{
-		while((ep = readdir(dp)) != NULL)
-			printf("%d: %s\n", ++fileMax, ep->d_name);
-
-		if(closedir(dp) != 0)
-			err_print("Closing directory failed.");
-	}
-	else
-	{
-		err_print("Opening directory failed.");
-		goto out;
-	}
-
-	if(fileMax == 0)
-	{
-		err_print("No files in audio folder.");
-		goto out;
-	}
-
+	puts("Playlist");
 	consoleSelect(&bottomScreen);
 
 	/**
@@ -99,45 +82,108 @@ int main(int argc, char **argv)
 		if(kDown & KEY_START)
 			break;
 
-		if(kDown & KEY_UP)
+		if((kDown & KEY_UP) && fileNum > 0)
 		{
-			printf("\33[2K\rSelected file %d",
-					++fileNum > fileMax ? 1 : fileNum);
+			fileNum--;
+
+			if(fileMax - fileNum >= from && from != 0)
+				from--;
 		}
 
-		if(kDown & KEY_DOWN)
+		if((kDown & KEY_DOWN) && fileNum < fileMax)
 		{
-			printf("\33[2K\rSelected file %d",
-					--fileNum == 0 ? fileMax : fileNum);
+			fileNum++;
+
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0)
+				from++;
 		}
 
-		if(fileNum == 0)
-			fileNum = fileMax;
-		else if(fileNum > fileMax)
-			fileNum = 1;
+		if(kDown & (KEY_DOWN | KEY_UP))
+		{
+			consoleClear();
+			if(listDir(from, MAX_LIST, fileNum) < 0)
+			{
+				err_print("Unable to list directory.");
+			}
+		}
+
+		/*
+		 * Pressing B goes up a folder, as well as pressing A or R when ".."
+		 * is selected.
+		 */
+		if((kDown & KEY_B) ||
+				((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0)))
+		{
+			if(chdir("..") != 0)
+				err_print("chdir");
+
+			fileMax = getNumberFiles();
+
+			consoleClear();
+			if(listDir(from, MAX_LIST, fileNum) < 0)
+			{
+				err_print("Unable to list directory.");
+			}
+
+			continue;
+		}
 
 		if(kDown & (KEY_A | KEY_R))
 		{
-			u8 audioFileNum = 0;
-			dp = opendir(AUDIO_FOLDER);
-			char* file = NULL;
+			int				audioFileNum = 0;
+			DIR				*dp;
+			struct dirent	*ep;
+			char*			wd = getcwd(NULL, 0);
 
-			if (dp != NULL)
+			/* TODO: Error out properly */
+			if(wd == NULL)
 			{
+				err_print("wd");
+				goto err;
+			}
+
+			dp = opendir(wd);
+
+			if(dp != NULL)
+			{
+				char* file = NULL;
+
 				while((ep = readdir(dp)) != NULL)
 				{
-					audioFileNum++;
-					if(audioFileNum == fileNum)
+					if(audioFileNum == fileNum - 1)
 						break;
+
+					audioFileNum++;
 				}
 
-				if(asprintf(&file, "%s%s", AUDIO_FOLDER, ep->d_name) == -1)
+				if(ep->d_type == DT_DIR)
+				{
+					/* file not allocated yet, so no need to clear it */
+					if(chdir(ep->d_name) != 0)
+						err_print("chdir");
+
+					fileNum = 0;
+					from = 0;
+					consoleClear();
+					fileMax = getNumberFiles();
+					if(listDir(from, MAX_LIST, fileNum) < 0)
+					{
+						err_print("Unable to list directory.");
+					}
+
+					closedir(dp);
+					free(wd);
+					continue;
+				}
+
+				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
 					file = NULL;
 				}
 				else
 				{
+					consoleSelect(&topScreen);
 					switch(getFileType(file))
 					{
 						case FILE_TYPE_WAV:
@@ -153,17 +199,21 @@ int main(int argc, char **argv)
 							break;
 
 						default:
+							consoleSelect(&bottomScreen);
 							printf("Unsupported File type.\n");
 					}
 				}
+
+				consoleSelect(&bottomScreen);
+
+				free(file);
+				free(wd);
 
 				if(closedir(dp) != 0)
 					err_print("Closing directory failed.");
 			}
 			else
 				err_print("Unable to open directory.");
-
-			free(file);
 		}
 	}
 
@@ -172,6 +222,111 @@ out:
 
 	gfxExit();
 	return 0;
+
+err:
+	puts("A fatal error occurred. Press START to exit.");
+
+	while(true)
+	{
+		u32 kDown;
+
+		hidScanInput();
+		kDown = hidKeysDown();
+
+		if(kDown & KEY_START)
+			break;
+	}
+
+	goto out;
+}
+
+/**
+ * List current directory.
+ *
+ * \param	from	First entry in directory to list.
+ * \param	max		Maximum number of entries to list. Must be > 0.
+ * \param	select	File to show as selected. Must be > 0.
+ * \return			Number of entries listed or negative on error.
+ */
+int listDir(int from, int max, int select)
+{
+	DIR				*dp;
+	struct dirent	*ep;
+	int				fileNum = 0;
+	int				listed = 0;
+	char*			wd = getcwd(NULL, 0);
+
+	if(wd == NULL)
+		goto err;
+
+	printf("Dir: %.30s\n", wd);
+
+	if((dp = opendir(wd)) == NULL)
+		goto err;
+
+	if(from == 0)
+		printf("%c../\n", select == 0 ? '>' : ' ');
+
+	while((ep = readdir(dp)) != NULL)
+	{
+		fileNum++;
+
+		if(fileNum <= from)
+			continue;
+
+		if(fileNum == max + from)
+			break;
+
+		listed++;
+
+		printf("%c%.38s%s\n",
+				select == fileNum ? '>' : ' ',
+				ep->d_name,
+				ep->d_type == DT_DIR ? "/" : "");
+	}
+
+	if(closedir(dp) != 0)
+		goto err;
+
+out:
+	free(wd);
+	return listed;
+
+err:
+	listed = -1;
+	goto out;
+}
+
+/**
+ * Get number of files in current working folder
+ *
+ * \return	Number of files in current working folder, -1 on failure with
+ *			errno set.
+ */
+int getNumberFiles(void)
+{
+	DIR				*dp;
+	struct dirent	*ep;
+	char*			wd = getcwd(NULL, 0);
+	int				ret = 0;
+
+	if(wd == NULL)
+		goto err;
+
+	if((dp = opendir(wd)) == NULL)
+		goto err;
+
+	while((ep = readdir(dp)) != NULL)
+		ret++;
+
+	closedir(dp);
+
+out:
+	return ret;
+
+err:
+	ret = -1;
+	goto out;
 }
 
 /**
@@ -249,196 +404,4 @@ int getFileType(const char *file)
 
 	fclose(ftest);
 	return file_type;
-}
-
-/**
- * Plays a WAV file.
- *
- * \param	file	File location of WAV file.
- * \return			Zero if successful, else failure.
- */
-int playWav(const char *wav)
-{
-	FILE*	file	= fopen(wav, "rb");
-	char	header[45];
-	u32		sample;
-	u8		format;
-	u8		channels;
-	u8		bitness;
-	u32		byterate; // TODO: Not used.
-	u32		blockalign;
-	s16*	buffer1 = NULL;
-	s16*	buffer2 = NULL;
-	ndspWaveBuf waveBuf[2];
-	bool playing = true;
-	bool lastbuf = false;
-
-	if(R_FAILED(ndspInit()))
-	{
-		err_print("Initialising ndsp failed.");
-		goto out;
-	}
-
-	// TODO: Check if this is required.
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-
-	if(file == NULL)
-	{
-		err_print("Opening file failed.");
-		goto out;
-	}
-
-	/* TODO: No need to read the first number of bytes */
-	if(fread(header, 1, 44, file) == 0)
-	{
-		err_print("Unable to read WAV file.");
-		goto out;
-	}
-
-	/**
-	 * http://www.topherlee.com/software/pcm-tut-wavformat.html and
-	 * http://soundfile.sapp.org/doc/WaveFormat/ helped a lot.
-	 */
-	format = (header[19]<<8) + (header[20]);
-	channels = (header[23]<<8) + (header[22]);
-	sample = (header[27]<<24) + (header[26]<<16) + (header[25]<<8) +
-		(header[24]);
-	byterate = (header[31]<<24) + (header[30]<<16) + (header[29]<<8) +
-		(header[28]);
-	blockalign = (header[33]<<8) + (header[32]);
-	bitness = (header[35]<<8) + (header[34]);
-	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %d, BR: %lu, BA: %lu\n",
-			format == 1 ? "PCM" : "Other", format, channels, sample, bitness,
-			byterate, blockalign);
-
-	if(channels > 2)
-	{
-		puts("Error: Invalid number of channels.");
-		goto out;
-	}
-
-	/**
-	 * Playing ADPCM, and 8 bit WAV files are disabled as they both sound like
-	 * complete garbage.
-	 */
-	switch(bitness)
-	{
-		case 8:
-			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM8 :
-				NDSP_FORMAT_MONO_PCM8;
-			puts("8bit playback disabled.");
-			goto out;
-
-		case 16:
-			bitness = channels == 2 ? NDSP_FORMAT_STEREO_PCM16 :
-				NDSP_FORMAT_MONO_PCM16;
-			break;
-
-		default:
-			printf("Bitness of %d unsupported.\n", bitness);
-			goto out;
-	}
-
-	ndspChnReset(CHANNEL);
-	ndspChnWaveBufClear(CHANNEL);
-	/* Polyphase sounds much better than linear or no interpolation */
-	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
-	ndspChnSetRate(CHANNEL, sample);
-	ndspChnSetFormat(CHANNEL, bitness);
-	memset(waveBuf, 0, sizeof(waveBuf));
-
-	buffer1 = (s16*) linearAlloc(BUFFER_SIZE);
-	buffer2 = (s16*) linearAlloc(BUFFER_SIZE);
-
-	fread(buffer1, 1, BUFFER_SIZE, file);
-	waveBuf[0].nsamples = BUFFER_SIZE / blockalign;
-	waveBuf[0].data_vaddr = &buffer1[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-
-	fread(buffer2, 1, BUFFER_SIZE, file);
-	waveBuf[1].nsamples = BUFFER_SIZE / blockalign;
-	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-
-	printf("Playing %s\n", wav);
-
-	/**
-	 * There may be a chance that the music has not started by the time we get
-	 * to the while loop. So we ensure that music has started here.
-	 */
-	while(ndspChnIsPlaying(CHANNEL) == false);
-
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
-	{
-		u32 kDown;
-		/* Number of bytes read from file.
-		 * Static only for the purposes of the printf debug at the bottom.
-		 */
-		static size_t read = 0;
-
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
-
-		hidScanInput();
-		kDown = hidKeysDown();
-
-		if(kDown & KEY_B)
-			break;
-
-		if(kDown & (KEY_A | KEY_R))
-			playing = !playing;
-
-		if(playing == false || lastbuf == true)
-		{
-			printf("\33[2K\rPaused");
-			continue;
-		}
-
-		printf("\33[2K\r");
-
-		if(waveBuf[0].status == NDSP_WBUF_DONE)
-		{
-			read = fread(buffer1, 1, BUFFER_SIZE, file);
-
-			if(read == 0)
-			{
-				lastbuf = true;
-				continue;
-			}
-			else if(read < BUFFER_SIZE)
-				waveBuf[0].nsamples = read / blockalign;
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-		}
-
-		if(waveBuf[1].status == NDSP_WBUF_DONE)
-		{
-			read = fread(buffer2, 1, BUFFER_SIZE, file);
-
-			if(read == 0)
-			{
-				lastbuf = true;
-				continue;
-			}
-			else if(read < BUFFER_SIZE)
-				waveBuf[1].nsamples = read / blockalign;
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-		}
-
-		DSP_FlushDataCache(buffer1, BUFFER_SIZE);
-		DSP_FlushDataCache(buffer2, BUFFER_SIZE);
-	}
-
-	ndspChnWaveBufClear(CHANNEL);
-
-out:
-	puts("Stopping playback.");
-
-	ndspExit();
-	fclose(file);
-	linearFree(buffer1);
-	linearFree(buffer2);
-	return 0;
 }
