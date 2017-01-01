@@ -144,15 +144,13 @@ int playWav(const char *wav)
 			break;
 
 		if(kDown & (KEY_A | KEY_R))
-			playing = !playing;
-
-		if(playing == false || lastbuf == true)
 		{
-			printf("\33[2K\rPaused");
-			continue;
+			playing = !playing;
+			printf("\33[2K\r%s", playing == false ? "Paused" : "");
 		}
 
-		printf("\33[2K\r");
+		if(playing == false || lastbuf == true)
+			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{

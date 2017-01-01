@@ -8,6 +8,14 @@
  */
 
 /**
+ * Get number of files in current working folder
+ *
+ * \return	Number of files in current working folder, -1 on failure with
+ *			errno set.
+ */
+int getNumberFiles(void);
+
+/**
  * List current directory.
  *
  * \param	from	First entry in directory to list.

@@ -49,11 +49,13 @@ int main(int argc, char **argv)
 
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
-	if((fileMax = listDir(from, MAX_LIST, 0)) < 0)
+	if(listDir(from, MAX_LIST, 0) < 0)
 	{
 		err_print("Unable to list directory.");
 		goto out;
 	}
+
+	fileMax = getNumberFiles();
 
 	consoleSelect(&topScreen);
 	puts("Playlist");
@@ -80,34 +82,49 @@ int main(int argc, char **argv)
 		if(kDown & KEY_START)
 			break;
 
-		if(kDown & KEY_UP)
+		if((kDown & KEY_UP) && fileNum > 0)
 		{
-			if(fileNum > 0)
-				fileNum--;
+			fileNum--;
+
+			if(fileMax - fileNum >= from && from != 0)
+				from--;
 		}
 
-		if(kDown & KEY_DOWN)
+		if((kDown & KEY_DOWN) && fileNum < fileMax)
 		{
-			if(fileNum < fileMax)
-				fileNum++;
+			fileNum++;
+
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0)
+				from++;
 		}
+
+		consoleSelect(&topScreen);
+		printf("\rNum: %d, from: %d, max: %d    ", fileNum, from, fileMax);
+		consoleSelect(&bottomScreen);
 
 		if(kDown & (KEY_DOWN | KEY_UP))
 		{
 			consoleClear();
-			if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+			if(listDir(from, MAX_LIST, fileNum) < 0)
 			{
 				err_print("Unable to list directory.");
 			}
 		}
 
-		if((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0))
+		/*
+		 * Pressing B goes up a folder, as well as pressing A or R when ".."
+		 * is selected.
+		 */
+		if((kDown & KEY_B) ||
+				((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0)))
 		{
 			if(chdir("..") != 0)
 				err_print("chdir");
 
+			fileMax = getNumberFiles();
+
 			consoleClear();
-			if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+			if(listDir(from, MAX_LIST, fileNum) < 0)
 			{
 				err_print("Unable to list directory.");
 			}
@@ -131,7 +148,7 @@ int main(int argc, char **argv)
 
 			dp = opendir(wd);
 
-			if (dp != NULL)
+			if(dp != NULL)
 			{
 				char* file = NULL;
 
@@ -150,12 +167,15 @@ int main(int argc, char **argv)
 						err_print("chdir");
 
 					fileNum = 0;
+					from = 0;
 					consoleClear();
-					if((fileMax = listDir(from, MAX_LIST, fileNum)) < 0)
+					fileMax = getNumberFiles();
+					if(listDir(from, MAX_LIST, fileNum) < 0)
 					{
 						err_print("Unable to list directory.");
 					}
 
+					closedir(dp);
 					free(wd);
 					continue;
 				}
@@ -265,16 +285,21 @@ int listDir(int from, int max, int select)
 	if(countChr > 1 && from == 0)
 		printf("%c../\n", select == 0 ? '>' : ' ');
 #endif
-	printf("%c../\n", select == 0 ? '>' : ' ');
+	if(from == 0)
+	{
+		printf("%c../\n", select == 0 ? '>' : ' ');
+		/* Compensate for the fact that there will be one more line */
+		//max++;
+	}
 
 	while((ep = readdir(dp)) != NULL)
 	{
 		fileNum++;
 
-		if(fileNum < from)
+		if(fileNum <= from)
 			continue;
 
-		if(fileNum + from == max)
+		if(fileNum == max + from)
 			break;
 
 		listed++;
@@ -294,6 +319,38 @@ out:
 
 err:
 	listed = -1;
+	goto out;
+}
+
+/**
+ * Get number of files in current working folder
+ *
+ * \return	Number of files in current working folder, -1 on failure with
+ *			errno set.
+ */
+int getNumberFiles(void)
+{
+	DIR				*dp;
+	struct dirent	*ep;
+	char*			wd = getcwd(NULL, 0);
+	int				ret = 0;
+
+	if(wd == NULL)
+		goto err;
+
+	if((dp = opendir(wd)) == NULL)
+		goto err;
+
+	while((ep = readdir(dp)) != NULL)
+		ret++;
+
+	closedir(dp);
+
+out:
+	return ret;
+
+err:
+	ret = -1;
 	goto out;
 }
 
