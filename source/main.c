@@ -70,6 +70,8 @@ int main(int argc, char **argv)
 	while(aptMainLoop())
 	{
 		u32 kDown;
+		u32 kHeld;
+		static u64	mill = 0;
 
 		hidScanInput();
 
@@ -78,33 +80,47 @@ int main(int argc, char **argv)
 		gspWaitForVBlank();
 
 		kDown = hidKeysDown();
+		kHeld = hidKeysHeld();
 
 		if(kDown & KEY_START)
 			break;
 
-		if((kDown & KEY_UP) && fileNum > 0)
+		consoleSelect(&topScreen);
+		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
+		consoleSelect(&bottomScreen);
+
+		if((kHeld & KEY_UP) && fileNum > 0)
 		{
+			/* Limit the speed of the selector */
+			if(osGetTime() - mill < 100)
+				continue;
+
 			fileNum--;
 
 			if(fileMax - fileNum >= from && from != 0)
 				from--;
+
+			mill = osGetTime();
 		}
 
-		if((kDown & KEY_DOWN) && fileNum < fileMax)
+		if((kHeld & KEY_DOWN) && fileNum < fileMax)
 		{
+			if(osGetTime() - mill < 100)
+				continue;
+
 			fileNum++;
 
-			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0)
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 && from < fileMax - MAX_LIST)
 				from++;
+
+			mill = osGetTime();
 		}
 
-		if(kDown & (KEY_DOWN | KEY_UP))
+		if(kHeld & (KEY_DOWN | KEY_UP))
 		{
 			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
-			{
 				err_print("Unable to list directory.");
-			}
 		}
 
 		/*
@@ -117,13 +133,13 @@ int main(int argc, char **argv)
 			if(chdir("..") != 0)
 				err_print("chdir");
 
+			fileNum = 0;
+			from = 0;
 			fileMax = getNumberFiles();
 
 			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
-			{
 				err_print("Unable to list directory.");
-			}
 
 			continue;
 		}
@@ -135,7 +151,6 @@ int main(int argc, char **argv)
 			struct dirent	*ep;
 			char*			wd = getcwd(NULL, 0);
 
-			/* TODO: Error out properly */
 			if(wd == NULL)
 			{
 				err_print("wd");
@@ -167,9 +182,7 @@ int main(int argc, char **argv)
 					consoleClear();
 					fileMax = getNumberFiles();
 					if(listDir(from, MAX_LIST, fileNum) < 0)
-					{
 						err_print("Unable to list directory.");
-					}
 
 					closedir(dp);
 					free(wd);

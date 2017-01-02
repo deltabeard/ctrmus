@@ -13,7 +13,7 @@ A or R = Pause/Play
 B = Stop
 
 ### When stopped
-A or R = Play selected file.
+A or R = Play selected file or change directory.
 
 Up and down = Select file.
 
@@ -23,11 +23,11 @@ Start = Return to Homebrew menu (Only when stopped playing).
 * Plays PCM WAV, AIFF, FLAC, Opus files.
 * Pause and play support.
 * Plays music via headphones whilst system is closed.
+* Ability to browse directories.
 
 ### Planned features
 * Playlist support.
 * Repeat and shuffle support.
 * OGG, MP3 file support.
-* Ability to browse directories.
 * Metadata support.
 
