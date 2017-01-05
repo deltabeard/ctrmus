@@ -18,6 +18,7 @@
 #include "all.h"
 #include "flac.h"
 #include "main.h"
+#include "mp3.h"
 #include "opus.h"
 #include "wav.h"
 
@@ -31,7 +32,8 @@ enum file_types {
 	FILE_TYPE_WAV,
 	FILE_TYPE_FLAC,
 	FILE_TYPE_OGG,
-	FILE_TYPE_OPUS
+	FILE_TYPE_OPUS,
+	FILE_TYPE_MP3
 };
 
 int main(int argc, char **argv)
@@ -85,9 +87,11 @@ int main(int argc, char **argv)
 		if(kDown & KEY_START)
 			break;
 
+#ifdef DEBUG
 		consoleSelect(&topScreen);
 		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
 		consoleSelect(&bottomScreen);
+#endif
 
 		if((kHeld & KEY_UP) && fileNum > 0)
 		{
@@ -209,6 +213,10 @@ int main(int argc, char **argv)
 
 						case FILE_TYPE_OPUS:
 							playOpus(file);
+							break;
+
+						case FILE_TYPE_MP3:
+							playMp3(file);
 							break;
 
 						default:
@@ -413,6 +421,20 @@ int getFileType(const char *file)
 			}
 
 			break;
+
+		default:
+			/*
+			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
+			 * with ID3 tag at the beginning  of the file.
+			 */
+			if((fileSig << 16) == 0xFBFF0000 || (fileSig << 8) == 0x33444900)
+			{
+				puts("File type is MP3.");
+				file_type = FILE_TYPE_MP3;
+				break;
+			}
+
+			printf("Unknown magic number: %#010x\n.", fileSig);
 	}
 
 	fclose(ftest);

@@ -38,8 +38,10 @@ int playOpus(const char* in)
 	}
 
 	opusHead = op_head(opusFile, link);
+#ifdef DEBUG
 	printf("\nRate: %lu\tChan: %d\n", opusHead->input_sample_rate,
 			opusHead->channel_count);
+#endif
 
 	ndspChnReset(CHANNEL);
 	ndspChnWaveBufClear(CHANNEL);

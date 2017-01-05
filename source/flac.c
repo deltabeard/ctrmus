@@ -25,8 +25,10 @@ int playFlac(const char* in)
 		goto out;
 	}
 
+#ifdef DEBUG
 	printf("\nRate: %lu\tChan: %d\n", pFlac->sampleRate,
 			pFlac->channels);
+#endif
 
 	ndspChnReset(CHANNEL);
 	ndspChnWaveBufClear(CHANNEL);
