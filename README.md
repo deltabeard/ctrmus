@@ -2,7 +2,7 @@
 <p align="center">A music player for the Nintendo 3DS</p>
 
 ### Instructions
-* Supported music files should go in the MUSIC folder on the root of the SD card, like SD:\MUSIC\chala.wav.
+* Transfer your music files to any folder on the SD card in your 3DS.
 * Start the ctrmus.3dsx application in the homebrew launcher.
 * Use the d-pad to select the music file to play, then press A.
 
@@ -15,12 +15,14 @@ B = Stop
 ### When stopped
 A or R = Play selected file or change directory.
 
+B = Go up directory.
+
 Up and down = Select file.
 
 Start = Return to Homebrew menu (Only when stopped playing).
 
 ### Features
-* Plays PCM WAV, AIFF, FLAC, Opus files.
+* Plays PCM WAV, AIFF, FLAC, Opus, MP3 files.
 * Pause and play support.
 * Plays music via headphones whilst system is closed.
 * Ability to browse directories.
@@ -28,6 +30,7 @@ Start = Return to Homebrew menu (Only when stopped playing).
 ### Planned features
 * Playlist support.
 * Repeat and shuffle support.
-* OGG, MP3 file support.
+* OGG file support.
 * Metadata support.
+* Gain support.
 

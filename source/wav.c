@@ -64,9 +64,11 @@ int playWav(const char *wav)
 		(header[28]);
 	blockalign = (header[33]<<8) + (header[32]);
 	bitness = (header[35]<<8) + (header[34]);
+#ifdef DEBUG
 	printf("Format: %s(%d), Ch: %d, Sam: %lu, bit: %d, BR: %lu, BA: %lu\n",
 			format == 1 ? "PCM" : "Other", format, channels, sample, bitness,
 			byterate, blockalign);
+#endif
 
 	if(channels > 2)
 	{

@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 	fileMax = getNumberFiles();
 
 	consoleSelect(&topScreen);
-	puts("Playlist");
+	puts("Log");
 	consoleSelect(&bottomScreen);
 
 	/**
