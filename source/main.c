@@ -25,7 +25,7 @@
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 /* Maximum number of lines that can be displayed */
-#define	MAX_LIST		28
+#define	MAX_LIST		27
 
 enum file_types {
 	FILE_TYPE_ERROR = -1,
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		consoleSelect(&bottomScreen);
 #endif
 
-		if((kHeld & KEY_UP) && fileNum > 0)
+		if((kHeld & KEY_UP) && fileNum > 0 && fileNum > 0)
 		{
 			/* Limit the speed of the selector */
 			if(osGetTime() - mill < 100)
@@ -105,23 +105,25 @@ int main(int argc, char **argv)
 				from--;
 
 			mill = osGetTime();
+
+			consoleClear();
+			if(listDir(from, MAX_LIST, fileNum) < 0)
+				err_print("Unable to list directory.");
 		}
 
-		if((kHeld & KEY_DOWN) && fileNum < fileMax)
+		if((kHeld & KEY_DOWN) && fileNum < fileMax && fileNum < fileMax)
 		{
 			if(osGetTime() - mill < 100)
 				continue;
 
 			fileNum++;
 
-			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 && from < fileMax - MAX_LIST)
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
+					from < fileMax - MAX_LIST)
 				from++;
 
 			mill = osGetTime();
-		}
 
-		if(kHeld & (KEY_DOWN | KEY_UP))
-		{
 			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
 				err_print("Unable to list directory.");
@@ -286,7 +288,10 @@ int listDir(int from, int max, int select)
 		goto err;
 
 	if(from == 0)
+	{
 		printf("%c../\n", select == 0 ? '>' : ' ');
+		listed++;
+	}
 
 	while((ep = readdir(dp)) != NULL)
 	{
@@ -295,15 +300,16 @@ int listDir(int from, int max, int select)
 		if(fileNum <= from)
 			continue;
 
-		if(fileNum == max + from)
-			break;
-
 		listed++;
 
-		printf("%c%.38s%s\n",
+		printf("%c%s%.37s%s\n",
 				select == fileNum ? '>' : ' ',
+				ep->d_type == DT_DIR ? "\x1b[34;1m" : "",
 				ep->d_name,
-				ep->d_type == DT_DIR ? "/" : "");
+				ep->d_type == DT_DIR ? "/\x1b[0m" : "");
+
+		if(fileNum == max + from)
+			break;
 	}
 
 	if(closedir(dp) != 0)
