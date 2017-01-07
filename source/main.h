@@ -7,6 +7,21 @@
  * LICENSE file.
  */
 
+/* Default folder */
+#define DEFAULT_DIR		"sdmc:/"
+
+/* Maximum number of lines that can be displayed */
+#define	MAX_LIST		27
+
+enum file_types {
+	FILE_TYPE_ERROR = -1,
+	FILE_TYPE_WAV,
+	FILE_TYPE_FLAC,
+	FILE_TYPE_OGG,
+	FILE_TYPE_OPUS,
+	FILE_TYPE_MP3
+};
+
 /**
  * Get number of files in current working folder
  *

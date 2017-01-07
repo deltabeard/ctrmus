@@ -20,21 +20,8 @@
 #include "main.h"
 #include "mp3.h"
 #include "opus.h"
+#include "playback.h"
 #include "wav.h"
-
-/* Default folder */
-#define DEFAULT_DIR		"sdmc:/"
-/* Maximum number of lines that can be displayed */
-#define	MAX_LIST		27
-
-enum file_types {
-	FILE_TYPE_ERROR = -1,
-	FILE_TYPE_WAV,
-	FILE_TYPE_FLAC,
-	FILE_TYPE_OGG,
-	FILE_TYPE_OPUS,
-	FILE_TYPE_MP3
-};
 
 int main(int argc, char **argv)
 {
@@ -204,6 +191,7 @@ int main(int argc, char **argv)
 				else
 				{
 					consoleSelect(&topScreen);
+					/* Move this to playback.c */
 					switch(getFileType(file))
 					{
 						case FILE_TYPE_WAV:
@@ -215,7 +203,7 @@ int main(int argc, char **argv)
 							break;
 
 						case FILE_TYPE_OPUS:
-							playOpus(file);
+							playFile(file);
 							break;
 
 						case FILE_TYPE_MP3:
