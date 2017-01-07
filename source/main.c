@@ -45,6 +45,7 @@ int main(int argc, char **argv)
 	int				from = 0;
 
 	gfxInitDefault();
+	sdmcInit();
 	consoleInit(GFX_TOP, &topScreen);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 	consoleSelect(&bottomScreen);
@@ -244,6 +245,7 @@ out:
 	puts("Exiting...");
 
 	gfxExit();
+	sdmcExit();
 	return 0;
 
 err:
