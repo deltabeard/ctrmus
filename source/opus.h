@@ -12,7 +12,6 @@ void exitOpus(void);
 
 int playOpus(const char* in);
 
-uint64_t fillOpusBuffer(OggOpusFile* opusFile, uint64_t samplesToRead,
-		int16_t* bufferOut);
+uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut);
 
 int isOpus(const char* in);

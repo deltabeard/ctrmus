@@ -5,10 +5,9 @@
 #include "all.h"
 #include "opus.h"
 
-#define SAMPLES_TO_READ	(32 * 1024)
-
 static OggOpusFile*		opusFile;
 static const OpusHead*	opusHead;
+static const int buffSize = 32 * 1024;
 
 /**
  * Set decoder parameters for Opus.
@@ -21,7 +20,7 @@ void setOpus(struct decoder_fn* decoder)
 	decoder->rate = rateOpus;
 	/* Opus decoder always returns stereo stream */
 	decoder->channels = 2;
-	decoder->buffSize = SAMPLES_TO_READ;
+	decoder->buffSize = buffSize;
 	decoder->decode = decodeOpus;
 	decoder->exit = exitOpus;
 }
@@ -66,7 +65,7 @@ uint32_t rateOpus(void)
  */
 uint64_t decodeOpus(void* buffer)
 {
-	return fillOpusBuffer(opusFile, SAMPLES_TO_READ, buffer);
+	return fillOpusBuffer(opusFile, buffer);
 }
 
 /**
@@ -81,15 +80,13 @@ void exitOpus(void)
  * Decode Opus file to fill buffer.
  *
  * \param opusFile		File to decode.
- * \param samplesToRead	Number of samples to read in to buffer. Must not exceed
- *						size of buffer.
  * \param bufferOut		Pointer to buffer.
  * \return				Samples read per channel.
  */
-uint64_t fillOpusBuffer(OggOpusFile* opusFile, uint64_t samplesToRead,
-		int16_t* bufferOut)
+uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut)
 {
 	uint64_t samplesRead = 0;
+	int samplesToRead = buffSize;
 
 	while(samplesToRead > 0)
 	{
