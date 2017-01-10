@@ -64,7 +64,7 @@ uint8_t channelFlac(void)
  */
 uint64_t decodeFlac(void* buffer)
 {
-	return drflac_read_s16(pFlac, buffSize, buffer) / pFlac->channels;
+	return drflac_read_s16(pFlac, buffSize, buffer);
 }
 
 /**
