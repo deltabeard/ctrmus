@@ -15,7 +15,7 @@ struct decoder_fn
 {
 	int (* init)(const char* file);
 	uint32_t (* rate)(void);
-	uint8_t (*channels)(void);
+	uint8_t (* channels)(void);
 	int buffSize;
 	uint64_t (* decode)(void*);
 	void (* exit)(void);

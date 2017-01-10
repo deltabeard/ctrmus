@@ -19,11 +19,6 @@ int playFile(const char* file)
 	bool			lastbuf = false;
 
 	printf("Here: %d\n", __LINE__);
-	if(R_FAILED(ndspInit()))
-	{
-		printf("Initialising ndsp failed.");
-		goto out;
-	}
 
 	switch(getFileType(file))
 	{
@@ -48,6 +43,12 @@ int playFile(const char* file)
 		default:
 			printf("Unsupported File type.\n");
 			return 0;
+	}
+
+	if(R_FAILED(ndspInit()))
+	{
+		printf("Initialising ndsp failed.");
+		goto out;
 	}
 
 	printf("Here: %d\n", __LINE__);
