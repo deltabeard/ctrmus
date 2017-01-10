@@ -3,8 +3,11 @@
 #include <string.h>
 
 #include "all.h"
+#include "flac.h"
+#include "mp3.h"
 #include "opus.h"
 #include "playback.h"
+#include "wav.h"
 
 int playFile(const char* file)
 {
@@ -22,8 +25,30 @@ int playFile(const char* file)
 		goto out;
 	}
 
-	printf("Here: %d\n", __LINE__);
-	setOpus(&decoder);
+	switch(getFileType(file))
+	{
+		case FILE_TYPE_WAV:
+			playWav(file);
+			return 0;
+
+		case FILE_TYPE_FLAC:
+			setFlac(&decoder);
+			break;
+			//playFlac(file);
+			//return 0;
+
+		case FILE_TYPE_OPUS:
+			setOpus(&decoder);
+			break;
+
+		case FILE_TYPE_MP3:
+			playMp3(file);
+			return 0;
+
+		default:
+			printf("Unsupported File type.\n");
+			return 0;
+	}
 
 	printf("Here: %d\n", __LINE__);
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
@@ -36,7 +61,7 @@ int playFile(const char* file)
 	printf("Here: %d\n", __LINE__);
 
 #ifdef DEBUG
-	printf("\nRate: %lu\tChan: %d\n", (*decoder.rate)(), decoder.channels);
+	printf("\nRate: %lu\tChan: %d\n", (*decoder.rate)(), (*decoder.channels)());
 #endif
 
 	ndspChnReset(CHANNEL);
@@ -44,16 +69,18 @@ int playFile(const char* file)
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, (*decoder.rate)());
-	ndspChnSetFormat(CHANNEL, NDSP_FORMAT_STEREO_PCM16);
+	ndspChnSetFormat(CHANNEL,
+			(*decoder.channels)() == 2 ? NDSP_FORMAT_STEREO_PCM16 :
+			NDSP_FORMAT_MONO_PCM16);
 	printf("Here: %d\n", __LINE__);
 
 	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples = (*decoder.decode)(&buffer1[0]) / decoder.channels;
+	waveBuf[0].nsamples = (*decoder.decode)(&buffer1[0]) / (*decoder.channels)();
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 	printf("Here: %d\n", __LINE__);
 
-	waveBuf[1].nsamples = (*decoder.decode)(&buffer2[0]) / decoder.channels;
+	waveBuf[1].nsamples = (*decoder.decode)(&buffer2[0]) / (*decoder.channels)();
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
@@ -103,7 +130,7 @@ int playFile(const char* file)
 				continue;
 			}
 			else if(read < decoder.buffSize)
-				waveBuf[0].nsamples = read / decoder.channels;
+				waveBuf[0].nsamples = read / (*decoder.channels)();
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
@@ -118,7 +145,7 @@ int playFile(const char* file)
 				continue;
 			}
 			else if(read < decoder.buffSize)
-				waveBuf[1].nsamples = read / decoder.channels;
+				waveBuf[1].nsamples = read / (*decoder.channels)();
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
@@ -135,4 +162,95 @@ out:
 	linearFree(buffer1);
 	linearFree(buffer2);
 	return 0;
+}
+
+/**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative.
+ */
+int getFileType(const char *file)
+{
+	FILE* ftest = fopen(file, "rb");
+	int fileSig = 0;
+	enum file_types file_type = FILE_TYPE_ERROR;
+
+	if(ftest == NULL)
+	{
+		err_print("Opening file failed.");
+		printf("file: %s\n", file);
+		return -1;
+	}
+
+	if(fread(&fileSig, 4, 1, ftest) == 0)
+	{
+		err_print("Unable to read file.");
+		fclose(ftest);
+		return -1;
+	}
+
+	switch(fileSig)
+	{
+		// "RIFF"
+		case 0x46464952:
+			if(fseek(ftest, 4, SEEK_CUR) != 0)
+			{
+				err_print("Unable to seek.");
+				break;
+			}
+
+			// "WAVE"
+			// Check required as AVI file format also uses "RIFF".
+			if(fread(&fileSig, 4, 1, ftest) == 0)
+			{
+				err_print("Unable to read potential WAV file.");
+				break;
+			}
+
+			if(fileSig != 0x45564157)
+				break;
+
+			file_type = FILE_TYPE_WAV;
+			printf("File type is WAV.");
+			break;
+
+		// "fLaC"
+		case 0x43614c66:
+			file_type = FILE_TYPE_FLAC;
+			printf("File type is FLAC.");
+			break;
+
+		// "OggS"
+		case 0x5367674f:
+			if(isOpus(file) == 0)
+			{
+				printf("\nFile type is Opus.");
+				file_type = FILE_TYPE_OPUS;
+			}
+			else
+			{
+				file_type = FILE_TYPE_OGG;
+				printf("\nFile type is OGG.");
+			}
+
+			break;
+
+		default:
+			/*
+			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
+			 * with ID3 tag at the beginning  of the file.
+			 */
+			if((fileSig << 16) == 0xFBFF0000 || (fileSig << 8) == 0x33444900)
+			{
+				puts("File type is MP3.");
+				file_type = FILE_TYPE_MP3;
+				break;
+			}
+
+			printf("Unknown magic number: %#010x\n.", fileSig);
+	}
+
+	fclose(ftest);
+	return file_type;
 }

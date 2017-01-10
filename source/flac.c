@@ -3,129 +3,74 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <./dr_libs/dr_flac.h>
 #include "all.h"
+#include "flac.h"
 
-#define SAMPLES_TO_READ	(16 * 1024)
+static drflac*		pFlac;
+static const int	buffSize = 16 * 1024;
 
-int playFlac(const char* in)
+/**
+ * Set decoder parameters for flac.
+ *
+ * \param	decoder Structure to store parameters.
+ */
+void setFlac(struct decoder_fn* decoder)
 {
-	drflac*		pFlac = drflac_open_file(in);
-	s16*		buffer1 = linearAlloc(SAMPLES_TO_READ * sizeof(s16));
-	s16*		buffer2 = linearAlloc(SAMPLES_TO_READ * sizeof(s16));
-	ndspWaveBuf waveBuf[2];
-	bool		playing = true;
-	bool		lastbuf = false;
+	decoder->init = &initFlac;
+	decoder->rate = &rateFlac;
+	decoder->channels = &channelFlac;
+	decoder->buffSize = buffSize;
+	decoder->decode = &decodeFlac;
+	decoder->exit = &exitFlac;
+}
 
-	if (pFlac == NULL) {
-		return -1;
-	}
+/**
+ * Initialise Flac decoder.
+ *
+ * \param	file	Location of flac file to play.
+ * \return			0 on success, else failure.
+ */
+int initFlac(const char* file)
+{
+	pFlac = drflac_open_file(file);
 
-	if(R_FAILED(ndspInit()))
-	{
-		printf("Initialising ndsp failed.");
-		goto out;
-	}
+	return pFlac == NULL ? -1 : 0;
+}
 
-#ifdef DEBUG
-	printf("\nRate: %lu\tChan: %d\n", pFlac->sampleRate,
-			pFlac->channels);
-#endif
+/**
+ * Get sampling rate of Flac file.
+ *
+ * \return	Sampling rate.
+ */
+uint32_t rateFlac(void)
+{
+	return pFlac->sampleRate;
+}
 
-	ndspChnReset(CHANNEL);
-	ndspChnWaveBufClear(CHANNEL);
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
-	ndspChnSetRate(CHANNEL, pFlac->sampleRate);
-	ndspChnSetFormat(CHANNEL, pFlac->channels == 2 ? NDSP_FORMAT_STEREO_PCM16 :
-			NDSP_FORMAT_MONO_PCM16);
+/**
+ * Get number of channels of Flac file.
+ *
+ * \return	Number of channels for opened file.
+ */
+uint8_t channelFlac(void)
+{
+	return pFlac->channels;
+}
 
-	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples =
-		drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer1) / pFlac->channels;
-	waveBuf[0].data_vaddr = &buffer1[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
+/**
+ * Decode part of open Flac file.
+ *
+ * \param buffer	Decoded output.
+ * \return			Samples read for each channel.
+ */
+uint64_t decodeFlac(void* buffer)
+{
+	return drflac_read_s16(pFlac, buffSize, buffer) / pFlac->channels;
+}
 
-	waveBuf[1].nsamples =
-		drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer2) / pFlac->channels;
-	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-
-	printf("Playing %s\n", in);
-	/**
-	 * There may be a chance that the music has not started by the time we get
-	 * to the while loop. So we ensure that music has started here.
-	 */
-	while(ndspChnIsPlaying(CHANNEL) == false);
-
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
-	{
-		u32 kDown;
-
-		/* Number of bytes read from file.
-		 * Static only for the purposes of the printf debug at the bottom.
-		 */
-		static size_t read = 0;
-
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
-
-		hidScanInput();
-		kDown = hidKeysDown();
-
-		if(kDown & KEY_B)
-			break;
-
-		if(kDown & (KEY_A | KEY_R))
-		{
-			playing = !playing;
-			printf("\33[2K\r%s", playing == false ? "Paused" : "");
-		}
-
-		if(playing == false || lastbuf == true)
-			continue;
-
-		if(waveBuf[0].status == NDSP_WBUF_DONE)
-		{
-			read = drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer1);
-
-			if(read == 0)
-			{
-				lastbuf = true;
-				continue;
-			}
-			else if(read < SAMPLES_TO_READ)
-				waveBuf[0].nsamples = read / pFlac->channels;
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-		}
-
-		if(waveBuf[1].status == NDSP_WBUF_DONE)
-		{
-			read = drflac_read_s16(pFlac, SAMPLES_TO_READ, buffer2);
-
-			if(read == 0)
-			{
-				lastbuf = true;
-				continue;
-			}
-			else if(read < SAMPLES_TO_READ)
-				waveBuf[1].nsamples = read / pFlac->channels;
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-		}
-
-		DSP_FlushDataCache(buffer1, SAMPLES_TO_READ * sizeof(s16));
-		DSP_FlushDataCache(buffer2, SAMPLES_TO_READ * sizeof(s16));
-	}
-
-	printf("\nEnd of file.");
-
-out:
-	printf("\nStopping Flac playback.\n");
-	ndspChnWaveBufClear(CHANNEL);
-	ndspExit();
-	linearFree(buffer1);
-	linearFree(buffer2);
+/**
+ * Free Flac decoder.
+ */
+void exitFlac(void)
+{
 	drflac_close(pFlac);
-	return 0;
 }

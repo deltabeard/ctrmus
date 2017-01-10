@@ -6,6 +6,8 @@ int initOpus(const char* file);
 
 uint32_t rateOpus(void);
 
+uint8_t channelOpus(void);
+
 uint64_t decodeOpus(void* buffer);
 
 void exitOpus(void);

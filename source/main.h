@@ -13,15 +13,6 @@
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		27
 
-enum file_types {
-	FILE_TYPE_ERROR = -1,
-	FILE_TYPE_WAV,
-	FILE_TYPE_FLAC,
-	FILE_TYPE_OGG,
-	FILE_TYPE_OPUS,
-	FILE_TYPE_MP3
-};
-
 /**
  * Get number of files in current working folder
  *
@@ -39,11 +30,3 @@ int getNumberFiles(void);
  * \return			Number of entries listed or negative on error.
  */
 int listDir(int from, int max, int select);
-
-/**
- * Obtains file type.
- *
- * \param	file	File location.
- * \return			File type, else negative.
- */
-int getFileType(const char *file);

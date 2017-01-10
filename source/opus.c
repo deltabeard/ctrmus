@@ -7,7 +7,7 @@
 
 static OggOpusFile*		opusFile;
 static const OpusHead*	opusHead;
-static const int buffSize = 32 * 1024;
+static const int		buffSize = 32 * 1024;
 
 /**
  * Set decoder parameters for Opus.
@@ -16,13 +16,12 @@ static const int buffSize = 32 * 1024;
  */
 void setOpus(struct decoder_fn* decoder)
 {
-	decoder->init = initOpus;
-	decoder->rate = rateOpus;
-	/* Opus decoder always returns stereo stream */
-	decoder->channels = 2;
+	decoder->init = &initOpus;
+	decoder->rate = &rateOpus;
+	decoder->channels = &channelOpus;
 	decoder->buffSize = buffSize;
-	decoder->decode = decodeOpus;
-	decoder->exit = exitOpus;
+	decoder->decode = &decodeOpus;
+	decoder->exit = &exitOpus;
 }
 
 /**
@@ -55,6 +54,17 @@ out:
 uint32_t rateOpus(void)
 {
 	return opusHead->input_sample_rate;
+}
+
+/**
+ * Get number of channels of Opus file.
+ *
+ * \return	Number of channels for opened file, so always be 2.
+ */
+uint8_t channelOpus(void)
+{
+	/* Opus decoder always returns stereo stream */
+	return 2;
 }
 
 /**
