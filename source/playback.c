@@ -23,14 +23,12 @@ int playFile(const char* file)
 	switch(getFileType(file))
 	{
 		case FILE_TYPE_WAV:
-			playWav(file);
-			return 0;
+			setWav(&decoder);
+			break;
 
 		case FILE_TYPE_FLAC:
 			setFlac(&decoder);
 			break;
-			//playFlac(file);
-			//return 0;
 
 		case FILE_TYPE_OPUS:
 			setOpus(&decoder);
