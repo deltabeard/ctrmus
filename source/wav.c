@@ -95,7 +95,7 @@ uint32_t rateWav(void)
  */
 uint8_t channelWav(void)
 {
-	return (header[23]<<8) + (header[22]);
+	return channels;
 }
 
 /**
@@ -106,7 +106,7 @@ uint8_t channelWav(void)
  */
 uint64_t readWav(void* buffer)
 {
-	return fread(buffer, 1, buffSize, pWav) / channels;
+	return fread(buffer, 1, buffSize, pWav) / sizeof(int16_t);
 }
 
 /**

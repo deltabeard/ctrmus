@@ -17,7 +17,6 @@
 
 #include "all.h"
 #include "main.h"
-#include "opus.h"
 #include "playback.h"
 
 int main(int argc, char **argv)

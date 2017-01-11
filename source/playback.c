@@ -17,6 +17,7 @@ int playFile(const char* file)
 	ndspWaveBuf		waveBuf[2];
 	bool			playing = true;
 	bool			lastbuf = false;
+	int				ret;
 
 	printf("Here: %d\n", __LINE__);
 
@@ -54,8 +55,11 @@ int playFile(const char* file)
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 
 	printf("Here: %d\n", __LINE__);
-	if((*decoder.init)(file) != 0)
+	if((ret = (*decoder.init)(file)) != 0)
+	{
+		printf("Error initialising decoder: %d\n", ret);
 		goto out;
+	}
 
 	printf("Here: %d\n", __LINE__);
 
