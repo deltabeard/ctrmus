@@ -36,8 +36,10 @@ int playFile(const char* file)
 			break;
 
 		case FILE_TYPE_MP3:
-			playMp3(file);
-			return 0;
+			setMp3(&decoder);
+			break;
+			//playMp3(file);
+			//return 0;
 
 		default:
 			printf("Unsupported File type.\n");
