@@ -19,8 +19,6 @@ int playFile(const char* file)
 	bool			lastbuf = false;
 	int				ret;
 
-	printf("Here: %d\n", __LINE__);
-
 	switch(getFileType(file))
 	{
 		case FILE_TYPE_WAV:
@@ -50,18 +48,14 @@ int playFile(const char* file)
 		goto out;
 	}
 
-	printf("Here: %d\n", __LINE__);
 	if((ret = (*decoder.init)(file)) != 0)
 	{
 		printf("Error initialising decoder: %d\n", ret);
 		goto out;
 	}
 
-	printf("Here: %d\n", __LINE__);
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
-
-	printf("Here: %d\n", __LINE__);
 
 #ifdef DEBUG
 	printf("\nRate: %lu\tChan: %d\n", (*decoder.rate)(), (*decoder.channels)());
@@ -75,13 +69,11 @@ int playFile(const char* file)
 	ndspChnSetFormat(CHANNEL,
 			(*decoder.channels)() == 2 ? NDSP_FORMAT_STEREO_PCM16 :
 			NDSP_FORMAT_MONO_PCM16);
-	printf("Here: %d\n", __LINE__);
 
 	memset(waveBuf, 0, sizeof(waveBuf));
 	waveBuf[0].nsamples = (*decoder.decode)(&buffer1[0]) / (*decoder.channels)();
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-	printf("Here: %d\n", __LINE__);
 
 	waveBuf[1].nsamples = (*decoder.decode)(&buffer2[0]) / (*decoder.channels)();
 	waveBuf[1].data_vaddr = &buffer2[0];

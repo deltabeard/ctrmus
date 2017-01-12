@@ -215,7 +215,6 @@ out:
 
 	gfxExit();
 	sdmcExit();
-	puts("Return");
 	return 0;
 
 err:
@@ -254,7 +253,7 @@ int listDir(int from, int max, int select)
 	if(wd == NULL)
 		goto err;
 
-	printf("Dir: %.30s\n", wd);
+	printf("Dir: %.33s\n", wd);
 
 	if((dp = opendir(wd)) == NULL)
 		goto err;
