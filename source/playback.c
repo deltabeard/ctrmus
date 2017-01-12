@@ -38,8 +38,6 @@ int playFile(const char* file)
 		case FILE_TYPE_MP3:
 			setMp3(&decoder);
 			break;
-			//playMp3(file);
-			//return 0;
 
 		default:
 			printf("Unsupported File type.\n");
@@ -53,15 +51,15 @@ int playFile(const char* file)
 	}
 
 	printf("Here: %d\n", __LINE__);
-	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
-	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
-
-	printf("Here: %d\n", __LINE__);
 	if((ret = (*decoder.init)(file)) != 0)
 	{
 		printf("Error initialising decoder: %d\n", ret);
 		goto out;
 	}
+
+	printf("Here: %d\n", __LINE__);
+	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
+	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 
 	printf("Here: %d\n", __LINE__);
 

@@ -1,5 +1,3 @@
-#include <mpg123.h>
-
 /**
  * Set decoder parameters for MP3.
  *
@@ -41,5 +39,3 @@ uint64_t decodeMp3(void* buffer);
  * Free MP3 decoder.
  */
 void exitMp3(void);
-
-int playMp3(const char* in);
