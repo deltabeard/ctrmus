@@ -69,10 +69,7 @@ int main(int argc, char **argv)
 		kHeld = hidKeysHeld();
 
 		if(kDown & KEY_START)
-		{
-			puts("Test.");
 			break;
-		}
 
 #ifdef DEBUG
 		consoleSelect(&topScreen);
