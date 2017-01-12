@@ -52,7 +52,7 @@ int initMp3(const char* file)
 	}
 
 	if(mpg123_open(mh, file) != MPG123_OK ||
-			mpg123_getformat(mh, &rate, &channels, &encoding) != MPG123_OK)
+			mpg123_getformat(mh, (long *) &rate, (int *) &channels, &encoding) != MPG123_OK)
 	{
 		//printf("Trouble with mpg123: %s\n", mpg123_strerror(mh));
 		return -1;
@@ -102,7 +102,7 @@ uint8_t channelMp3(void)
  */
 uint64_t decodeMp3(void* buffer)
 {
-	int done = 0;
+	size_t done = 0;
 	mpg123_read(mh, buffer, *buffSize, &done);
 	return done / (sizeof(int16_t));
 }
