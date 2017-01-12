@@ -100,12 +100,13 @@ uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut)
 
 	while(samplesToRead > 0)
 	{
-		uint64_t samplesJustRead = op_read_stereo(opusFile, bufferOut,
+		int samplesJustRead = op_read_stereo(opusFile, bufferOut,
 				samplesToRead > 120*48*2 ? 120*48*2 : samplesToRead);
 
 		if(samplesJustRead < 0)
 		{
-			printf("\nFatal error decoding Opus: %llu.", samplesJustRead);
+			/* TODO: Printing should not be done here. */
+			printf("\nFatal error decoding Opus: %d.", samplesJustRead);
 			return 0;
 		}
 		else if(samplesJustRead == 0)
