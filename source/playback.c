@@ -234,7 +234,7 @@ int getFileType(const char *file)
 			else
 			{
 				file_type = FILE_TYPE_OGG;
-				printf("\nFile type is OGG.");
+				printf("\nUnsupported audio in OGG container.");
 			}
 
 			break;

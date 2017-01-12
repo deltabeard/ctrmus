@@ -36,7 +36,6 @@ Start = Return to Homebrew menu (Only when stopped playing).
 ### Planned features
 * Playlist support.
 * Repeat and shuffle support.
-* OGG file support.
 * Metadata support.
 * Gain support.
 
