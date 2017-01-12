@@ -2,6 +2,11 @@
 <p align="center">A music player for the Nintendo 3DS</p>
 <p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="http://i.imgur.com/LyztiZR.png">QR code</a>, or via titledb</p>
 
+#### Note
+Due to limitations in [ctrulib](https://github.com/smealum/ctrulib/issues/328), only ASCII characters are displayed correctly. Other characters will appear garbled, but functionality is not affected.
+
+[Ctrulib](https://github.com/smealum/ctrulib/issues/328)の制約でアスキー文字のみ正しく表示されます。それ以外の文字エンコードの場合文字化けはしますが、機能自体に影響はありません。
+
 ### Instructions
 * Transfer your music files to any folder on the SD card in your 3DS.
 * Start the ctrmus application.
