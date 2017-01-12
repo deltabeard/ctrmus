@@ -10,3 +10,13 @@
 #define err_print(err) \
 	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
 			err, strerror(errno)); } while (0)
+
+struct decoder_fn
+{
+	int (* init)(const char* file);
+	uint32_t (* rate)(void);
+	uint8_t (* channels)(void);
+	int buffSize;
+	uint64_t (* decode)(void*);
+	void (* exit)(void);
+};

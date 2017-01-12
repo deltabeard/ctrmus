@@ -7,6 +7,12 @@
  * LICENSE file.
  */
 
+/* Default folder */
+#define DEFAULT_DIR		"sdmc:/"
+
+/* Maximum number of lines that can be displayed */
+#define	MAX_LIST		27
+
 /**
  * Get number of files in current working folder
  *
@@ -24,11 +30,3 @@ int getNumberFiles(void);
  * \return			Number of entries listed or negative on error.
  */
 int listDir(int from, int max, int select);
-
-/**
- * Obtains file type.
- *
- * \param	file	File location.
- * \return			File type, else negative.
- */
-int getFileType(const char *file);

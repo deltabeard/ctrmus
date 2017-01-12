@@ -16,25 +16,8 @@
 #include <unistd.h>
 
 #include "all.h"
-#include "flac.h"
 #include "main.h"
-#include "mp3.h"
-#include "opus.h"
-#include "wav.h"
-
-/* Default folder */
-#define DEFAULT_DIR		"sdmc:/"
-/* Maximum number of lines that can be displayed */
-#define	MAX_LIST		27
-
-enum file_types {
-	FILE_TYPE_ERROR = -1,
-	FILE_TYPE_WAV,
-	FILE_TYPE_FLAC,
-	FILE_TYPE_OGG,
-	FILE_TYPE_OPUS,
-	FILE_TYPE_MP3
-};
+#include "playback.h"
 
 int main(int argc, char **argv)
 {
@@ -86,7 +69,10 @@ int main(int argc, char **argv)
 		kHeld = hidKeysHeld();
 
 		if(kDown & KEY_START)
+		{
+			puts("Test.");
 			break;
+		}
 
 #ifdef DEBUG
 		consoleSelect(&topScreen);
@@ -204,31 +190,9 @@ int main(int argc, char **argv)
 				else
 				{
 					consoleSelect(&topScreen);
-					switch(getFileType(file))
-					{
-						case FILE_TYPE_WAV:
-							playWav(file);
-							break;
-
-						case FILE_TYPE_FLAC:
-							playFlac(file);
-							break;
-
-						case FILE_TYPE_OPUS:
-							playOpus(file);
-							break;
-
-						case FILE_TYPE_MP3:
-							playMp3(file);
-							break;
-
-						default:
-							consoleSelect(&bottomScreen);
-							printf("Unsupported File type.\n");
-					}
+					playFile(file);
+					consoleSelect(&bottomScreen);
 				}
-
-				consoleSelect(&bottomScreen);
 
 				free(file);
 				free(wd);
@@ -240,6 +204,11 @@ int main(int argc, char **argv)
 				err_print("Unable to open directory.");
 		}
 	}
+#ifdef DEBUG
+		consoleSelect(&topScreen);
+		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
+		consoleSelect(&bottomScreen);
+#endif
 
 out:
 	puts("Exiting...");
@@ -284,7 +253,7 @@ int listDir(int from, int max, int select)
 	if(wd == NULL)
 		goto err;
 
-	printf("Dir: %.30s\n", wd);
+	printf("Dir: %.33s\n", wd);
 
 	if((dp = opendir(wd)) == NULL)
 		goto err;
@@ -356,95 +325,4 @@ out:
 err:
 	ret = -1;
 	goto out;
-}
-
-/**
- * Obtains file type.
- *
- * \param	file	File location.
- * \return			File type, else negative.
- */
-int getFileType(const char *file)
-{
-	FILE* ftest = fopen(file, "rb");
-	int fileSig = 0;
-	enum file_types file_type = FILE_TYPE_ERROR;
-
-	if(ftest == NULL)
-	{
-		err_print("Opening file failed.");
-		printf("file: %s\n", file);
-		return -1;
-	}
-
-	if(fread(&fileSig, 4, 1, ftest) == 0)
-	{
-		err_print("Unable to read file.");
-		fclose(ftest);
-		return -1;
-	}
-
-	switch(fileSig)
-	{
-		// "RIFF"
-		case 0x46464952:
-			if(fseek(ftest, 4, SEEK_CUR) != 0)
-			{
-				err_print("Unable to seek.");
-				break;
-			}
-
-			// "WAVE"
-			// Check required as AVI file format also uses "RIFF".
-			if(fread(&fileSig, 4, 1, ftest) == 0)
-			{
-				err_print("Unable to read potential WAV file.");
-				break;
-			}
-
-			if(fileSig != 0x45564157)
-				break;
-
-			file_type = FILE_TYPE_WAV;
-			printf("File type is WAV.");
-			break;
-
-		// "fLaC"
-		case 0x43614c66:
-			file_type = FILE_TYPE_FLAC;
-			printf("File type is FLAC.");
-			break;
-
-		// "OggS"
-		case 0x5367674f:
-			if(isOpus(file) == 0)
-			{
-				printf("\nFile type is Opus.");
-				file_type = FILE_TYPE_OPUS;
-			}
-			else
-			{
-				file_type = FILE_TYPE_OGG;
-				printf("\nFile type is OGG.");
-			}
-
-			break;
-
-		default:
-			/*
-			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
-			 * with ID3 tag at the beginning  of the file.
-			 */
-			if((fileSig << 16) == 0xFBFF0000 || (fileSig << 8) == 0x33444900)
-			{
-				puts("File type is MP3.");
-				file_type = FILE_TYPE_MP3;
-				break;
-			}
-
-			printf("Unknown magic number: %#010x\n.", fileSig);
-	}
-
-	fclose(ftest);
-	return file_type;
 }

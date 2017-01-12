@@ -1,4 +1,5 @@
 #include <3ds.h>
+#include <mpg123.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,154 +7,112 @@
 #include "all.h"
 #include "mp3.h"
 
-int playMp3(const char* in)
-{
-	int				err = 0;
-	mpg123_handle	*mh = NULL;
-	size_t			buffer_size = 0;
-	size_t			done = 0;
-	long			rate = 0;
-	int				channels = 0;
-	int				encoding = 0;
-	unsigned char*	buffer1 = NULL;
-	unsigned char*	buffer2 = NULL;
-	int				ret = 0;
-	ndspWaveBuf		waveBuf[2];
-	bool			playing = true;
-	bool			lastbuf = false;
+static int*				buffSize;
+static mpg123_handle	*mh = NULL;
+static uint32_t			rate;
+static uint8_t			channels;
 
-	if(R_FAILED(ndspInit()))
-	{
-		printf("Initialising ndsp failed.");
-		goto out;
-	}
+/**
+ * Set decoder parameters for MP3.
+ *
+ * \param	decoder Structure to store parameters.
+ */
+void setMp3(struct decoder_fn* decoder)
+{
+	decoder->init = &initMp3;
+	decoder->rate = &rateMp3;
+	decoder->channels = &channelMp3;
+	/*
+	 * buffSize changes depending on input file. So we set buffSize later when
+	 * decoder is initialised.
+	 */
+	buffSize = &(decoder->buffSize);
+	decoder->decode = &decodeMp3;
+	decoder->exit = &exitMp3;
+}
+
+/**
+ * Initialise MP3 decoder.
+ *
+ * \param	file	Location of MP3 file to play.
+ * \return			0 on success, else failure.
+ */
+int initMp3(const char* file)
+{
+	int err = 0;
+	int encoding = 0;
 
 	if((err = mpg123_init()) != MPG123_OK)
 		return err;
 
 	if((mh = mpg123_new(NULL, &err)) == NULL)
 	{
-		printf("Error: %s\n", mpg123_plain_strerror(err));
-		goto err;
+		//printf("Error: %s\n", mpg123_plain_strerror(err));
+		return err;
 	}
 
-	if(mpg123_open(mh, in) != MPG123_OK ||
-			mpg123_getformat(mh, &rate, &channels, &encoding) != MPG123_OK)
+	if(mpg123_open(mh, file) != MPG123_OK ||
+			mpg123_getformat(mh, (long *) &rate, (int *) &channels, &encoding) != MPG123_OK)
 	{
-		printf("Trouble with mpg123: %s\n", mpg123_strerror(mh));
-		goto err;
+		//printf("Trouble with mpg123: %s\n", mpg123_strerror(mh));
+		return -1;
 	}
 
-	/* Ensure that this output format will not change
-	   (it might, when we allow it). */
+	/*
+	 * Ensure that this output format will not change (it might, when we allow
+	 * it).
+	 */
 	mpg123_format_none(mh);
 	mpg123_format(mh, rate, channels, encoding);
 
-	/* Buffer could be almost any size here, mpg123_outblock() is just some
-	   recommendation. The size should be a multiple of the PCM frame size. */
-	buffer_size = mpg123_outblock(mh) * 16;
-	buffer1 = linearAlloc(buffer_size);
-	buffer2 = linearAlloc(buffer_size);
-
-	/* I'm not sure if this error will ever occur. */
-	if(channels > 2)
-	{
-		printf("Invalid number of channels %d\n", channels);
-		goto err;
-	}
-
-	ndspChnReset(CHANNEL);
-	ndspChnWaveBufClear(CHANNEL);
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
-	ndspChnSetRate(CHANNEL, rate);
-	ndspChnSetFormat(CHANNEL,
-			channels == 2 ? NDSP_FORMAT_STEREO_PCM16 : NDSP_FORMAT_MONO_PCM16);
-
-	memset(waveBuf, 0, sizeof(waveBuf));
-
-	mpg123_read(mh, buffer1, buffer_size, &done);
-	waveBuf[0].nsamples = done / (sizeof(s16) * channels);
-	waveBuf[0].data_vaddr = &buffer1[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-
-	mpg123_read(mh, buffer2, buffer_size, &done);
-	waveBuf[1].nsamples = done / (sizeof(s16) * channels);
-	waveBuf[1].data_vaddr = &buffer2[0];
-	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-
-	printf("Playing %s\n", in);
-	/**
-	 * There may be a chance that the music has not started by the time we get
-	 * to the while loop. So we ensure that music has started here.
+	/*
+	 * Buffer could be almost any size here, mpg123_outblock() is just some
+	 * recommendation. The size should be a multiple of the PCM frame size.
 	 */
-	while(ndspChnIsPlaying(CHANNEL) == false);
+	*buffSize = mpg123_outblock(mh) * 16;
 
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
-	{
-		u32 kDown;
+	return 0;
+}
 
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
+/**
+ * Get sampling rate of MP3 file.
+ *
+ * \return	Sampling rate.
+ */
+uint32_t rateMp3(void)
+{
+	return rate;
+}
 
-		hidScanInput();
-		kDown = hidKeysDown();
+/**
+ * Get number of channels of MP3 file.
+ *
+ * \return	Number of channels for opened file.
+ */
+uint8_t channelMp3(void)
+{
+	return channels;
+}
 
-		if(kDown & KEY_B)
-			break;
+/**
+ * Decode part of open MP3 file.
+ *
+ * \param buffer	Decoded output.
+ * \return			Samples read for each channel.
+ */
+uint64_t decodeMp3(void* buffer)
+{
+	size_t done = 0;
+	mpg123_read(mh, buffer, *buffSize, &done);
+	return done / (sizeof(int16_t));
+}
 
-		if(kDown & (KEY_A | KEY_R))
-		{
-			playing = !playing;
-			printf("\33[2K\r%s", playing == false ? "Paused" : "");
-		}
-
-		if(playing == false || lastbuf == true)
-			continue;
-
-		if(waveBuf[0].status == NDSP_WBUF_DONE)
-		{
-			err = mpg123_read(mh, buffer1, buffer_size, &done);
-
-			if(err != MPG123_OK)
-			{
-				lastbuf = true;
-				continue;
-			}
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
-		}
-
-		if(waveBuf[1].status == NDSP_WBUF_DONE)
-		{
-			err = mpg123_read(mh, buffer2, buffer_size, &done);
-
-			if(err != MPG123_OK)
-			{
-				lastbuf = true;
-				continue;
-			}
-
-			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
-		}
-
-		DSP_FlushDataCache(buffer1, buffer_size);
-		DSP_FlushDataCache(buffer2, buffer_size);
-	}
-
-out:
-	linearFree(buffer1);
-	linearFree(buffer2);
-	ndspChnWaveBufClear(CHANNEL);
-	ndspExit();
+/**
+ * Free MP3 decoder.
+ */
+void exitMp3(void)
+{
 	mpg123_close(mh);
 	mpg123_delete(mh);
 	mpg123_exit();
-	printf("\nStopping MP3 playback.\n");
-	return ret;
-
-err:
-	ret = -1;
-	goto out;
 }
