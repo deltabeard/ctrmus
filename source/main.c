@@ -76,40 +76,33 @@ int main(int argc, char **argv)
 		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
 		consoleSelect(&bottomScreen);
 #endif
+		if(kDown)
+			mill = osGetTime();
 
-		if((kHeld & KEY_UP) && fileNum > 0 && fileNum > 0)
+		if((kDown & KEY_UP || ((kHeld & KEY_UP) &&
+						osGetTime() - mill > 500)) &&
+				fileNum > 0 && fileNum > 0)
 		{
-			/* Limit the speed of the selector */
-			if(osGetTime() - mill < 100)
-				continue;
-
 			fileNum--;
 
 			/* 26 is the maximum number of entries that can be printed */
 			if(fileMax - fileNum > 26 && from != 0)
 				from--;
 
-			mill = osGetTime();
-
-			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
 				err_print("Unable to list directory.");
 		}
 
-		if((kHeld & KEY_DOWN) && fileNum < fileMax && fileNum < fileMax)
+		if((kDown & KEY_DOWN || ((kHeld & KEY_DOWN) &&
+						osGetTime() - mill > 500)) &&
+				fileNum < fileMax && fileNum < fileMax)
 		{
-			if(osGetTime() - mill < 100)
-				continue;
-
 			fileNum++;
 
 			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
 					from < fileMax - MAX_LIST)
 				from++;
 
-			mill = osGetTime();
-
-			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
 				err_print("Unable to list directory.");
 		}
@@ -128,7 +121,6 @@ int main(int argc, char **argv)
 			from = 0;
 			fileMax = getNumberFiles();
 
-			consoleClear();
 			if(listDir(from, MAX_LIST, fileNum) < 0)
 				err_print("Unable to list directory.");
 
@@ -170,7 +162,6 @@ int main(int argc, char **argv)
 
 					fileNum = 0;
 					from = 0;
-					consoleClear();
 					fileMax = getNumberFiles();
 					if(listDir(from, MAX_LIST, fileNum) < 0)
 						err_print("Unable to list directory.");
@@ -251,6 +242,7 @@ int listDir(int from, int max, int select)
 	if(wd == NULL)
 		goto err;
 
+	consoleClear();
 	printf("Dir: %.33s\n", wd);
 
 	if((dp = opendir(wd)) == NULL)
