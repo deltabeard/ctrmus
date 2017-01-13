@@ -1,6 +1,6 @@
 <h1 align="center"><img src="http://i.imgur.com/pWWyVMO.png" alt="ctrmus icon"><br>ctrmus</h1>
 <p align="center">A music player for the Nintendo 3DS</p>
-<p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="http://i.imgur.com/FxzWu1Y.png">QR code</a>, or via titledb</p>
+<p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="http://i.imgur.com/nfkP3yp.png">QR code</a>, or via titledb</p>
 
 #### Note
 Due to limitations in [ctrulib](https://github.com/smealum/ctrulib/issues/328), only ASCII characters are displayed correctly. Other characters will appear garbled, but functionality is not affected.
