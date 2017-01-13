@@ -85,7 +85,8 @@ int main(int argc, char **argv)
 
 			fileNum--;
 
-			if(fileMax - fileNum >= from && from != 0)
+			/* 26 is the maximum number of entries that can be printed */
+			if(fileMax - fileNum > 26 && from != 0)
 				from--;
 
 			mill = osGetTime();
