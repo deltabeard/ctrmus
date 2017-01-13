@@ -4,7 +4,7 @@
 #define CHANNEL	0x08
 
 /* Adds extra debugging text */
-//#define DEBUG
+#define DEBUG
 
 /* Prints more error information */
 #define err_print(err) \
