@@ -180,6 +180,8 @@ int main(int argc, char **argv)
 				{
 					consoleSelect(&topScreen);
 					playFile(file);
+					/* Remember not to free(file) when un-commenting this */
+					//addToQueue(file);
 					consoleSelect(&bottomScreen);
 				}
 

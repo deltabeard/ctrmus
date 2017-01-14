@@ -106,7 +106,7 @@ uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut)
 		if(samplesJustRead < 0)
 		{
 			/* TODO: Printing should not be done here. */
-			printf("\nFatal error decoding Opus: %d.", samplesJustRead);
+			//printf("\nFatal error decoding Opus: %d.", samplesJustRead);
 			return 0;
 		}
 		else if(samplesJustRead == 0)

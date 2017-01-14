@@ -9,6 +9,48 @@
 #include "playback.h"
 #include "wav.h"
 
+static qitem_t* head = NULL;
+
+/**
+ * Adds a file to queue.
+ *
+ * \param	file	Absolute path of file.
+ * \return			0 on success, else failure.
+ */
+int addToQueue(const char* file)
+{
+	qitem_t* current = head;
+
+	/* TODO: Add check for file type here? */
+
+	/* Detect if first node is not initialised */
+	if(head == NULL)
+	{
+		if((current = malloc(sizeof(qitem_t))) == NULL)
+			goto err;
+
+		current->file = file;
+		current->next = NULL;
+
+		return 0;
+	}
+
+	/* Obtain last element in linked list */
+	while(current->next != NULL)
+		current = current->next;
+
+	if((current->next = malloc(sizeof(qitem_t))) == NULL)
+		goto err;
+
+	current->next->file = file;
+	current->next->next = NULL;
+
+	return 0;
+
+err:
+	return -1;
+}
+
 int playFile(const char* file)
 {
 	struct decoder_fn decoder;
