@@ -53,6 +53,8 @@ int main(int argc, char **argv)
 	 */
 	aptSetSleepAllowed(false);
 
+	initPlayback();
+
 	while(aptMainLoop())
 	{
 		u32 kDown;
@@ -133,6 +135,7 @@ int main(int argc, char **argv)
 			DIR				*dp;
 			struct dirent	*ep;
 			char*			wd = getcwd(NULL, 0);
+			char*			file = NULL;
 
 			if(wd == NULL)
 			{
@@ -140,70 +143,68 @@ int main(int argc, char **argv)
 				goto err;
 			}
 
-			dp = opendir(wd);
+			if((dp = opendir(wd)) == NULL)
+				continue;
 
-			if(dp != NULL)
+			while((ep = readdir(dp)) != NULL)
 			{
-				char* file = NULL;
+				if(audioFileNum == fileNum - 1)
+					break;
 
-				while((ep = readdir(dp)) != NULL)
-				{
-					if(audioFileNum == fileNum - 1)
-						break;
+				audioFileNum++;
+			}
 
-					audioFileNum++;
-				}
+			if(ep->d_type == DT_DIR)
+			{
+				/* file not allocated yet, so no need to clear it */
+				if(chdir(ep->d_name) != 0)
+					err_print("chdir");
 
-				if(ep->d_type == DT_DIR)
-				{
-					/* file not allocated yet, so no need to clear it */
-					if(chdir(ep->d_name) != 0)
-						err_print("chdir");
+				fileNum = 0;
+				from = 0;
+				fileMax = getNumberFiles();
+				if(listDir(from, MAX_LIST, fileNum) < 0)
+					err_print("Unable to list directory.");
 
-					fileNum = 0;
-					from = 0;
-					fileMax = getNumberFiles();
-					if(listDir(from, MAX_LIST, fileNum) < 0)
-						err_print("Unable to list directory.");
-
-					closedir(dp);
-					free(wd);
-					continue;
-				}
-
-				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
-				{
-					err_print("Constructing file name failed.");
-					file = NULL;
-				}
-				else
-				{
-					consoleSelect(&topScreen);
-					playFile(file);
-					/* Remember not to free(file) when un-commenting this */
-					//addToQueue(file);
-					consoleSelect(&bottomScreen);
-				}
-
-				free(file);
+				closedir(dp);
 				free(wd);
+				continue;
+			}
 
-				if(closedir(dp) != 0)
-					err_print("Closing directory failed.");
+			if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
+			{
+				err_print("Constructing file name failed.");
+				file = NULL;
 			}
 			else
-				err_print("Unable to open directory.");
+			{
+				consoleSelect(&topScreen);
+				//playFile(file);
+				/* Remember not to free(file) when un-commenting this */
+				if(addToQueue(file) != 0)
+					puts("Failure to add to queue.");
+
+				consoleSelect(&bottomScreen);
+			}
+
+			//free(file);
+			free(wd);
+
+			if(closedir(dp) != 0)
+				err_print("Closing directory failed.");
 		}
 	}
+
 #ifdef DEBUG
-		consoleSelect(&topScreen);
-		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
-		consoleSelect(&bottomScreen);
+	consoleSelect(&topScreen);
+	printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
+	consoleSelect(&bottomScreen);
 #endif
 
 out:
 	puts("Exiting...");
 
+	exitPlayback();
 	gfxExit();
 	sdmcExit();
 	return 0;

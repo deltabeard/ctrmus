@@ -9,7 +9,47 @@
 #include "playback.h"
 #include "wav.h"
 
+Thread thread;
+Handle threadHandle;
+
+#define STACKSIZE (4 * 1024)
+
+/* Tell threads to stop when exiting */
+volatile bool runThread = true;
+
+/* First element in linked list */
 static qitem_t* head = NULL;
+
+/**
+ * Play linked list in order.
+ */
+void playQueue(void *arg)
+{
+	u64 sleepDuration = 1000000ULL;
+
+	puts("Thread started.");
+
+	while(runThread)
+	{
+		qitem_t* current;
+
+		printf("%s\n", current->file);
+		/* Wait until an item is added to queue */
+		//svcWaitSynchronization(threadHandle, U64_MAX);
+		svcSleepThread(sleepDuration);
+		//svcClearEvent(threadHandle);
+
+		current = head;
+
+		while(current != NULL)
+		{
+			printf("%s\n", current->file);
+			playFile(current->file);
+			current = current->next;
+		}
+
+	}
+}
 
 /**
  * Adds a file to queue.
@@ -21,10 +61,11 @@ int addToQueue(const char* file)
 {
 	qitem_t* current = head;
 
-	/* TODO: Add check for file type here? */
+	if(getFileType(file) == FILE_TYPE_ERROR)
+		goto err;
 
 	/* Detect if first node is not initialised */
-	if(head == NULL)
+	if(current == NULL)
 	{
 		if((current = malloc(sizeof(qitem_t))) == NULL)
 			goto err;
@@ -32,6 +73,12 @@ int addToQueue(const char* file)
 		current->file = file;
 		current->next = NULL;
 
+		if(head->file != NULL)
+			printf("%s\n", head->file);
+		else
+			puts("Head is NULL");
+
+		puts("Added first element");
 		return 0;
 	}
 
@@ -45,10 +92,42 @@ int addToQueue(const char* file)
 	current->next->file = file;
 	current->next->next = NULL;
 
+	puts("Added");
+	/* Let thread know we've added a new file to the queue */
+	//svcSignalEvent(threadHandle);
 	return 0;
 
 err:
 	return -1;
+}
+
+/**
+ * Initialise playback module.
+ */
+void initPlayback(void)
+{
+	int32_t			prio = 0;
+	int				ret = 0;
+
+	ret = APT_SetAppCpuTimeLimit(30);
+	printf("APT: %d\n", ret);
+	/* Initialise playback thread */
+	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+	thread = threadCreate(playQueue, NULL, STACKSIZE, prio - 1, 1, false);
+	if(thread == NULL)
+		printf("Failure creating thread.");
+
+	return;
+}
+
+/**
+ * Free playback module.
+ */
+void exitPlayback(void)
+{
+	runThread = false;
+	threadJoin(thread, U64_MAX);
+	threadFree(thread);
 }
 
 int playFile(const char* file)

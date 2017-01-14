@@ -18,12 +18,27 @@ typedef struct qitem
 } qitem_t;
 
 /**
+ * Play linked list in order.
+ */
+void playQueue(void *arg);
+
+/**
  * Adds a file to queue.
  *
  * \param	file	Absolute path of file.
  * \return			0 on success, else failure.
  */
 int addToQueue(const char* file);
+
+/**
+ * Initialise playback module.
+ */
+void initPlayback(void);
+
+/**
+ * Free playback module.
+ */
+void exitPlayback(void);
 
 int playFile(const char* file);
 
