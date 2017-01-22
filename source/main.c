@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 					continue;
 				}
 
-				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
+				if(asprintf(&file, "%s%s", wd + 5, ep->d_name) == -1)
 				{
 					err_print("Constructing file name failed.");
 					file = NULL;
