@@ -7,18 +7,19 @@ Due to limitations in [ctrulib](https://github.com/smealum/ctrulib/issues/328), 
 
 [Ctrulib](https://github.com/smealum/ctrulib/issues/328)の制約でアスキー文字のみ正しく表示されます。それ以外の文字エンコードの場合文字化けはしますが、機能自体に影響はありません。
 
-### Instructions
-* Transfer your music files to any folder on the SD card in your 3DS.
-* Start the ctrmus application.
-* Use the d-pad to browse your files, then press A to play.
+### Features
+* Plays PCM WAV, AIFF, FLAC, Opus, MP3 files.
+* Pause and play support.
+* Plays music via headphones whilst system is closed.
+* Ability to browse directories.
 
 ### Controls
-### Whilst playing
+#### Whilst playing
 A or R = Pause/Play
 
 B = Stop
 
-### When stopped
+#### When stopped
 A or R = Play selected file or change directory.
 
 B = Go up directory.
@@ -27,13 +28,11 @@ Up and down = Select file.
 
 Start = Return to Homebrew menu (Only when stopped playing).
 
-### Features
-* Plays PCM WAV, AIFF, FLAC, Opus, MP3 files.
-* Pause and play support.
-* Plays music via headphones whilst system is closed.
-* Ability to browse directories.
+### Contributing
+Have a look at [CONTRIBUTING.md](https://github.com/deltabeard/ctrmus/blob/master/CONTRIBUTING.md) for some info and guidelines on contributing to the project.
 
 ### Planned features
+* FFMPEG support.
 * Playlist support.
 * Repeat and shuffle support.
 * Metadata support.
