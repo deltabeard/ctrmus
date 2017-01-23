@@ -7,7 +7,7 @@
 #include "ffmpeg.h"
 #include "playback.h"
 
-int buffSize = 2048;
+int buffSize = 1 * 1024 * 1024;
 
 int playFile(const char* file)
 {
@@ -17,6 +17,9 @@ int playFile(const char* file)
 	bool			playing = true;
 	bool			lastbuf = false;
 	int				ret;
+	int				channels;
+
+	consoleClear();
 
 	// TODO: Initialise FFMPEG
 	if((ret = initffmpeg(file)) != 0)
@@ -34,8 +37,10 @@ int playFile(const char* file)
 	buffer1 = linearAlloc(buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(buffSize * sizeof(int16_t));
 
+	channels = channelffmpeg();
+
 #ifdef DEBUG
-	printf("\nRate: %lu\tChan: %d\n", rateffmpeg(), channelffmpeg());
+	printf("\nRate: %lu\tChan: %d\n", rateffmpeg(), channels);
 #endif
 
 	ndspChnReset(CHANNEL);
@@ -44,19 +49,24 @@ int playFile(const char* file)
 	ndspChnSetInterp(CHANNEL, NDSP_INTERP_POLYPHASE);
 	ndspChnSetRate(CHANNEL, rateffmpeg());
 	ndspChnSetFormat(CHANNEL,
-			channelffmpeg() == 2 ? NDSP_FORMAT_STEREO_PCM16 :
+			channels == 2 ? NDSP_FORMAT_STEREO_PCM16 :
 			NDSP_FORMAT_MONO_PCM16);
 
 	memset(waveBuf, 0, sizeof(waveBuf));
-	waveBuf[0].nsamples = decodeffmpeg(&buffer1[0]) / channelffmpeg();
+	waveBuf[0].nsamples = decodeffmpeg(&buffer1[0]) / channels;
 	waveBuf[0].data_vaddr = &buffer1[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 
-	waveBuf[1].nsamples = decodeffmpeg(&buffer2[0]) / channelffmpeg();
+	// TODO: Temporary.
+	//while(decodeffmpeg(&buffer1[0]) != 0)
+	//{}
+	//goto out;
+
+	waveBuf[1].nsamples = decodeffmpeg(&buffer2[0]) / channels;
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
-	printf("Playing %s\n", file);
+	//printf("Playing %s\n", file);
 
 	/**
 	 * There may be a chance that the music has not started by the time we get
@@ -102,7 +112,7 @@ int playFile(const char* file)
 				continue;
 			}
 			else if(read < buffSize)
-				waveBuf[0].nsamples = read / channelffmpeg();
+				waveBuf[0].nsamples = read / channels;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[0]);
 		}
@@ -117,7 +127,7 @@ int playFile(const char* file)
 				continue;
 			}
 			else if(read < buffSize)
-				waveBuf[1].nsamples = read / channelffmpeg();
+				waveBuf[1].nsamples = read / channels;
 
 			ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 		}
