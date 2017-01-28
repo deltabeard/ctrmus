@@ -216,12 +216,14 @@ volatile int int2 = 0;
 void threadFunction1(void* arg) {
 	while (run) {
 		svcWaitSynchronization(event1, U64_MAX);
+		svcClearEvent(event1);
 		int1++;
 	}
 }
 void threadFunction2(void* arg) {
 	while (run) {
 		svcWaitSynchronization(event2, U64_MAX);
+		svcClearEvent(event2);
 		int2++;
 	}
 }
