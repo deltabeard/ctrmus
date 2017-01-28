@@ -218,6 +218,22 @@ void threadFunction1(void* arg) {
 		svcWaitSynchronization(event1, U64_MAX);
 		svcClearEvent(event1);
 		int1++;
+
+		gspWaitForVBlank();
+
+		sf2d_start_frame(GFX_TOP, GFX_LEFT);
+		{
+			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "int1: %i", int1);
+			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "int2: %i", int2);
+		}
+		sf2d_end_frame();
+
+		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
+		{
+		}
+		sf2d_end_frame();
+
+		sf2d_swapbuffers();
 	}
 }
 void threadFunction2(void* arg) {
@@ -272,22 +288,6 @@ int main(int argc, char** argv)
 		} else {
 			svcSignalEvent(event2);
 		}
-
-		gspWaitForVBlank();
-
-		sf2d_start_frame(GFX_TOP, GFX_LEFT);
-		{
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "int1: %i", int1);
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "int2: %i", int2);
-		}
-		sf2d_end_frame();
-
-		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
-		{
-		}
-		sf2d_end_frame();
-
-		sf2d_swapbuffers();
 	}
 
 	sftd_free_font(font);
