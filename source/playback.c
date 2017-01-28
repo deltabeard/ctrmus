@@ -109,6 +109,7 @@ int playFile(const char* file)
 		if(kDown & (KEY_A | KEY_R))
 		{
 			playing = !playing;
+			ndspChnSetPaused(CHANNEL, !ndspChnIsPaused(CHANNEL));
 			printf("\33[2K\r%s", playing == false ? "Paused" : "");
 		}
 
