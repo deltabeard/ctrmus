@@ -31,3 +31,8 @@
 # Debug files
 *.dSYM/
 *.su
+
+# Output folders
+build/
+output/
+
