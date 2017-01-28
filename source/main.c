@@ -214,6 +214,7 @@ int main(int argc, char **argv)
 {
 	sftd_init();
 	sf2d_init();
+	romfsInit();
 	aptSetSleepAllowed(false);
 
 	f_UI(NULL);
@@ -229,6 +230,7 @@ int main(int argc, char **argv)
 	f_UI(NULL);
 	*/
 
+	romfsExit();
 	sftd_fini();
 	sf2d_fini();
 	return 0;
