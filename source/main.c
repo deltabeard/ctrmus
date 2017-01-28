@@ -23,6 +23,9 @@
 
 #define STACKSIZE (16 * 1024)
 
+sftd_font* font;
+int fontSize = 15;
+
 // UI to PLAYER
 volatile bool run = true;
 volatile int nowPlaying = 0;
@@ -90,13 +93,6 @@ void f_UI(void* arg) {
 		listnames[i][strlen(baseListName)-0] = 0;
 	}
 
-	sf2d_set_clear_color(RGBA8(255,106,0, 255));
-	sf2d_set_vblank_wait(0);
-
-	// Font loading
-	//sftd_font* font = sftd_load_font_mem(FreeSerif_ttf, FreeSerif_ttf_size);
-	sftd_font* font = sftd_load_font_file("romfs:/FreeSerif.ttf");
-
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
 	oldTouchPad.px = 0;
@@ -111,7 +107,6 @@ void f_UI(void* arg) {
 
 	float inertia = 10;
 
-	int fontSize = 15;
 	int cellSize = fontSize*2;
 
 	int hilitFolder = -1;
@@ -206,7 +201,6 @@ void f_UI(void* arg) {
 
 		sf2d_swapbuffers();
 	}
-	sftd_free_font(font);
 }
 
 void f_player(void* arg) {
@@ -215,27 +209,86 @@ void f_player(void* arg) {
 	}
 }
 
-int main(int argc, char **argv)
+Handle event1;
+Handle event2;
+volatile int int1 = 0;
+volatile int int2 = 0;
+void threadFunction1(void* arg) {
+	while (run) {
+		svcWaitSynchronization(event1, U64_MAX);
+		int1++;
+	}
+}
+void threadFunction2(void* arg) {
+	while (run) {
+		svcWaitSynchronization(event2, U64_MAX);
+		int2++;
+	}
+}
+
+int main(int argc, char** argv)
 {
 	sftd_init();
 	sf2d_init();
 	romfsInit();
 	sdmcInit();
+
+	sf2d_set_clear_color(RGBA8(255,106,0, 255));
+	sf2d_set_vblank_wait(0);
+	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
+
+
 	aptSetSleepAllowed(false);
 
 	//f_UI(NULL);
 
 	//f_player(NULL);
 
-	Thread t = threadCreate(f_UI, NULL, STACKSIZE, 0x18, -2, true);
+	//Thread t = threadCreate(f_UI, NULL, STACKSIZE, 0x18, -2, true);
 	//f_player(NULL);
 
 	//Thread t = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 	//f_UI(NULL);
 
+	/*
 	while (run) {
 		svcSleepThread(100000000);
 	}
+	*/
+
+	svcCreateEvent(&event1, 0);
+	svcCreateEvent(&event2, 0);
+
+	Thread t1 = threadCreate(threadFunction1, &int1, STACKSIZE, 0x18, -2, true);
+	Thread t2 = threadCreate(threadFunction2, &int2, STACKSIZE, 0x18, -2, true);
+
+	int scheduler_count = 0;
+	while (run) {
+		scheduler_count++;
+		if (scheduler_count % 4 == 0) {
+			svcSignalEvent(event1);
+		} else {
+			svcSignalEvent(event2);
+		}
+
+		gspWaitForVBlank();
+
+		sf2d_start_frame(GFX_TOP, GFX_LEFT);
+		{
+			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "int1: %i", int1);
+			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "int2: %i", int2);
+		}
+		sf2d_end_frame();
+
+		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
+		{
+		}
+		sf2d_end_frame();
+
+		sf2d_swapbuffers();
+	}
+
+	sftd_free_font(font);
 
 	sdmcExit();
 	romfsExit();
