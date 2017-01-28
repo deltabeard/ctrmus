@@ -31,8 +31,10 @@ volatile int nowPlaying = 0;
 volatile float progress = 0;
 
 void listClicked(int hilit) {
+	/*
 	nowPlaying = hilit;
 	progress = 0;
+	*/
 }
 
 void folderClicked(int hilit) {
@@ -165,13 +167,16 @@ void f_UI(void* arg) {
 		yFolder = fmax(-10,fmin(cellSize*nbFolderNames-240,yFolder));
 		yList = fmax(-10,fmin(cellSize*nbListNames-240,yList));
 
-		//gspWaitForVBlank();
+		gspWaitForVBlank();
 
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
+			/*
+			// there is a segfault somewhere here
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
+			*/
 		}
 		sf2d_end_frame();
 
@@ -215,229 +220,28 @@ int main(int argc, char **argv)
 	sftd_init();
 	sf2d_init();
 	romfsInit();
+	sdmcInit();
 	aptSetSleepAllowed(false);
 
-	f_UI(NULL);
+	//f_UI(NULL);
+
 	//f_player(NULL);
 
-	/*
 	Thread t = threadCreate(f_UI, NULL, STACKSIZE, 0x18, -2, true);
-	f_player(NULL);
-	*/
+	//f_player(NULL);
 
-	/*
-	Thread t = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
-	f_UI(NULL);
-	*/
+	//Thread t = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	//f_UI(NULL);
 
+	while (run) {
+		svcSleepThread(100000000);
+	}
+
+	sdmcExit();
 	romfsExit();
 	sftd_fini();
 	sf2d_fini();
 	return 0;
-}
-
-int old_main(int argc, char **argv)
-{
-	PrintConsole	topScreen;
-	PrintConsole	bottomScreen;
-	int				fileMax;
-	int				fileNum = 0;
-	int				from = 0;
-
-	gfxInitDefault();
-	sdmcInit();
-	consoleInit(GFX_TOP, &topScreen);
-	consoleInit(GFX_BOTTOM, &bottomScreen);
-	consoleSelect(&bottomScreen);
-
-	chdir(DEFAULT_DIR);
-	chdir("MUSIC");
-	if(listDir(from, MAX_LIST, 0) < 0)
-	{
-		err_print("Unable to list directory.");
-		goto err;
-	}
-
-	fileMax = getNumberFiles();
-
-	consoleSelect(&topScreen);
-	puts("Log");
-	consoleSelect(&bottomScreen);
-
-	/**
-	 * This allows for music to continue playing through the headphones whilst
-	 * the 3DS is closed.
-	 */
-	aptSetSleepAllowed(false);
-
-	while(aptMainLoop())
-	{
-		u32 kDown;
-		u32 kHeld;
-		static u64	mill = 0;
-
-		hidScanInput();
-
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
-
-		kDown = hidKeysDown();
-		kHeld = hidKeysHeld();
-
-		if(kDown & KEY_START)
-			break;
-
-#ifdef DEBUG
-		consoleSelect(&topScreen);
-		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
-		consoleSelect(&bottomScreen);
-#endif
-		if(kDown)
-			mill = osGetTime();
-
-		if((kDown & KEY_UP || ((kHeld & KEY_UP) &&
-						osGetTime() - mill > 500)) &&
-				fileNum > 0 && fileNum > 0)
-		{
-			fileNum--;
-
-			/* 26 is the maximum number of entries that can be printed */
-			if(fileMax - fileNum > 26 && from != 0)
-				from--;
-
-			if(listDir(from, MAX_LIST, fileNum) < 0)
-				err_print("Unable to list directory.");
-		}
-
-		if((kDown & KEY_DOWN || ((kHeld & KEY_DOWN) &&
-						osGetTime() - mill > 500)) &&
-				fileNum < fileMax && fileNum < fileMax)
-		{
-			fileNum++;
-
-			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
-					from < fileMax - MAX_LIST)
-				from++;
-
-			if(listDir(from, MAX_LIST, fileNum) < 0)
-				err_print("Unable to list directory.");
-		}
-
-		/*
-		 * Pressing B goes up a folder, as well as pressing A or R when ".."
-		 * is selected.
-		 */
-		if((kDown & KEY_B) ||
-				((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0)))
-		{
-			if(chdir("..") != 0)
-				err_print("chdir");
-
-			fileNum = 0;
-			from = 0;
-			fileMax = getNumberFiles();
-
-			if(listDir(from, MAX_LIST, fileNum) < 0)
-				err_print("Unable to list directory.");
-
-			continue;
-		}
-
-		if(kDown & (KEY_A | KEY_R))
-		{
-			int				audioFileNum = 0;
-			DIR				*dp;
-			struct dirent	*ep;
-			char*			wd = getcwd(NULL, 0);
-
-			if(wd == NULL)
-			{
-				err_print("wd");
-				goto err;
-			}
-
-			dp = opendir(wd);
-
-			if(dp != NULL)
-			{
-				char* file = NULL;
-
-				while((ep = readdir(dp)) != NULL)
-				{
-					if(audioFileNum == fileNum - 1)
-						break;
-
-					audioFileNum++;
-				}
-
-				if(ep->d_type == DT_DIR)
-				{
-					/* file not allocated yet, so no need to clear it */
-					if(chdir(ep->d_name) != 0)
-						err_print("chdir");
-
-					fileNum = 0;
-					from = 0;
-					fileMax = getNumberFiles();
-					if(listDir(from, MAX_LIST, fileNum) < 0)
-						err_print("Unable to list directory.");
-
-					closedir(dp);
-					free(wd);
-					continue;
-				}
-
-				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
-				{
-					err_print("Constructing file name failed.");
-					file = NULL;
-				}
-				else
-				{
-					consoleSelect(&topScreen);
-					playFile(file);
-					consoleSelect(&bottomScreen);
-				}
-
-				free(file);
-				free(wd);
-
-				if(closedir(dp) != 0)
-					err_print("Closing directory failed.");
-			}
-			else
-				err_print("Unable to open directory.");
-		}
-	}
-#ifdef DEBUG
-		consoleSelect(&topScreen);
-		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
-		consoleSelect(&bottomScreen);
-#endif
-
-out:
-	puts("Exiting...");
-
-	gfxExit();
-	sdmcExit();
-	return 0;
-
-err:
-	puts("A fatal error occurred. Press START to exit.");
-
-	while(true)
-	{
-		u32 kDown;
-
-		hidScanInput();
-		kDown = hidKeysDown();
-
-		if(kDown & KEY_START)
-			break;
-	}
-
-	goto out;
 }
 
 /**
