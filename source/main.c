@@ -73,25 +73,40 @@ char* basename(char* s) {
 	return s+i+1;
 }
 
+Handle event1;
+Handle event2;
+volatile int int1 = 0;
+volatile int int2 = 0;
+
+char** foldernames = NULL;
+char** listnames = NULL;
+
 void f_UI(void* arg) {
 	const char* baseFolderName = "filepath/foldername00";
 	int nbFolderNames = 70;
-	char foldernames[nbFolderNames][strlen(baseFolderName)+1];
+	/*
+	foldernames = (char**)malloc(nbFolderNames*sizeof(char*));
 	for (int i=0; i<nbFolderNames; i++) {
+		foldernames[i] = (char*)malloc((strlen(baseFolderName)+1)*sizeof(char));
 		memcpy(foldernames[i], baseFolderName, strlen(baseFolderName));
 		foldernames[i][strlen(baseFolderName)-1] = '0' + (i%10);
 		foldernames[i][strlen(baseFolderName)-2] = '0' + (i/10%10);
 		foldernames[i][strlen(baseFolderName)-0] = 0;
 	}
+	*/
 	const char* baseListName = "filepath/listname00";
 	int nbListNames = 30;
-	char listnames[nbListNames][strlen(baseListName)+1];
+	/*
+	listnames = (char**)malloc(nbListNames*sizeof(char*));
 	for (int i=0; i<nbListNames; i++) {
+		listnames[i] = (char*)malloc((strlen(baseListName)+1)*sizeof(char));
 		memcpy(listnames[i], baseListName, strlen(baseListName));
 		listnames[i][strlen(baseListName)-1] = '0' + (i%10);
 		listnames[i][strlen(baseListName)-2] = '0' + (i/10%10);
 		listnames[i][strlen(baseListName)-0] = 0;
 	}
+	*/
+	// TODO has to be freed somewhere
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
@@ -122,7 +137,8 @@ void f_UI(void* arg) {
 	u32 hlTextColor = RGBA8(255,0,0,255);
 
 	while (run) {
-		svcSleepThread(1);
+		svcWaitSynchronization(event1, U64_MAX);
+		svcClearEvent(event1);
 
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) run = false;
@@ -166,6 +182,7 @@ void f_UI(void* arg) {
 
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
+			sftd_draw_textf(font, 0, 0, RGBA8(0,0,0,255), fontSize, "int2%i", int2);
 			/*
 			// there is a segfault somewhere here
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
@@ -181,14 +198,16 @@ void f_UI(void* arg) {
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				//sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, "list%i", i);
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				//sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, "folder%i", i);
 			}
 
 			sf2d_draw_rectangle(paneBorder, 0, 1, 240, RGBA8(255,255,255,255));
@@ -209,10 +228,6 @@ void f_player(void* arg) {
 	}
 }
 
-Handle event1;
-Handle event2;
-volatile int int1 = 0;
-volatile int int2 = 0;
 void threadFunction1(void* arg) {
 	while (run) {
 		svcWaitSynchronization(event1, U64_MAX);
@@ -255,7 +270,6 @@ int main(int argc, char** argv)
 	sf2d_set_vblank_wait(0);
 	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
 
-
 	aptSetSleepAllowed(false);
 
 	//f_UI(NULL);
@@ -277,7 +291,8 @@ int main(int argc, char** argv)
 	svcCreateEvent(&event1, 0);
 	svcCreateEvent(&event2, 0);
 
-	Thread t1 = threadCreate(threadFunction1, &int1, STACKSIZE, 0x18, -2, true);
+	//Thread t1 = threadCreate(threadFunction1, &int1, STACKSIZE, 0x18, -2, true);
+	Thread t1 = threadCreate(f_UI, &int1, STACKSIZE, 0x18, -2, true);
 	Thread t2 = threadCreate(threadFunction2, &int2, STACKSIZE, 0x18, -2, true);
 
 	int scheduler_count = 0;
