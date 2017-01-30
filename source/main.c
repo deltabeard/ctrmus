@@ -20,6 +20,7 @@
 #include "all.h"
 #include "main.h"
 #include "playback.h"
+#include "sync.h"
 
 #define STACKSIZE (16 * 1024)
 
@@ -73,8 +74,6 @@ char* basename(char* s) {
 	return s+i+1;
 }
 
-Handle event1;
-Handle event2;
 volatile int int1 = 0;
 volatile int int2 = 0;
 
@@ -225,6 +224,7 @@ void f_UI(void* arg) {
 void f_player(void* arg) {
 	while(run) {
 		playFile("sdmc:/Music/17 - F-Zero.mp3");
+		playFile("sdmc:/Music/03 - Rosalina.mp3");
 	}
 }
 
@@ -277,12 +277,13 @@ int main(int argc, char** argv)
 
 	Thread t1 = threadCreate(threadFunction1, &int1, STACKSIZE, 0x18, -2, true);
 	//Thread t1 = threadCreate(f_UI, &int1, STACKSIZE, 0x18, -2, true);
-	Thread t2 = threadCreate(threadFunction2, &int2, STACKSIZE, 0x18, -2, true);
+	//Thread t2 = threadCreate(threadFunction2, &int2, STACKSIZE, 0x18, -2, true);
+	Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
 	int scheduler_count = 0;
 	while (run) {
 		scheduler_count++;
-		if (scheduler_count % 4 == 0) {
+		if (scheduler_count % 256 != 0) {
 			svcSignalEvent(event1);
 		} else {
 			svcSignalEvent(event2);

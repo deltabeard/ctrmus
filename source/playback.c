@@ -8,6 +8,7 @@
 #include "opus.h"
 #include "playback.h"
 #include "wav.h"
+#include "sync.h"
 
 int playFile(const char* file)
 {
@@ -89,6 +90,8 @@ int playFile(const char* file)
 
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
+		svcSleepThread(event2);
+
 		u32 kDown;
 
 		/* Number of bytes read from file.
