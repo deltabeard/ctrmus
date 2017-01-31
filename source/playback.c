@@ -90,7 +90,8 @@ int playFile(const char* file)
 
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
-		svcSleepThread(event2);
+		svcWaitSynchronization(event2, U64_MAX);
+		svcClearEvent(event2);
 
 		u32 kDown;
 

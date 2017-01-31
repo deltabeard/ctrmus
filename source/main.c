@@ -283,7 +283,7 @@ int main(int argc, char** argv)
 	int scheduler_count = 0;
 	while (run) {
 		scheduler_count++;
-		if (scheduler_count % 256 != 0) {
+		if (scheduler_count % 16 != 0) {
 			svcSignalEvent(event1);
 		} else {
 			svcSignalEvent(event2);
