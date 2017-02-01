@@ -81,9 +81,48 @@ char** foldernames = NULL;
 char** listnames = NULL;
 
 void f_UI(void* arg) {
+}
+
+void f_player(void* arg) {
+	while(true) {
+		playFile("sdmc:/Music/03 - Rosalina.mp3");
+		playFile("sdmc:/Music/17 - F-Zero.mp3");
+	}
+}
+
+void threadFunction1(void* arg) {
+	while (run) {
+		svcWaitSynchronization(event1, U64_MAX);
+		svcClearEvent(event1);
+		int1++;
+	}
+}
+void threadFunction2(void* arg) {
+	while (run) {
+		svcWaitSynchronization(event2, U64_MAX);
+		svcClearEvent(event2);
+		int2++;
+	}
+}
+
+int main(int argc, char** argv)
+{
+	sftd_init();
+	sf2d_init();
+	romfsInit();
+	sdmcInit();
+
+	sf2d_set_clear_color(RGBA8(255,106,0, 255));
+	sf2d_set_vblank_wait(0);
+	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
+
+	aptSetSleepAllowed(false);
+	svcCreateEvent(&event2, 0);
+
+	Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+
 	const char* baseFolderName = "filepath/foldername00";
 	int nbFolderNames = 70;
-	/*
 	foldernames = (char**)malloc(nbFolderNames*sizeof(char*));
 	for (int i=0; i<nbFolderNames; i++) {
 		foldernames[i] = (char*)malloc((strlen(baseFolderName)+1)*sizeof(char));
@@ -92,10 +131,8 @@ void f_UI(void* arg) {
 		foldernames[i][strlen(baseFolderName)-2] = '0' + (i/10%10);
 		foldernames[i][strlen(baseFolderName)-0] = 0;
 	}
-	*/
 	const char* baseListName = "filepath/listname00";
 	int nbListNames = 30;
-	/*
 	listnames = (char**)malloc(nbListNames*sizeof(char*));
 	for (int i=0; i<nbListNames; i++) {
 		listnames[i] = (char*)malloc((strlen(baseListName)+1)*sizeof(char));
@@ -104,7 +141,6 @@ void f_UI(void* arg) {
 		listnames[i][strlen(baseListName)-2] = '0' + (i/10%10);
 		listnames[i][strlen(baseListName)-0] = 0;
 	}
-	*/
 	// TODO has to be freed somewhere
 
 	touchPosition oldTouchPad;
@@ -135,9 +171,9 @@ void f_UI(void* arg) {
 	u32 textColor = RGBA8(255,255,255,255);
 	u32 hlTextColor = RGBA8(255,0,0,255);
 
-	while (run) {
-		svcWaitSynchronization(event1, U64_MAX);
-		svcClearEvent(event1);
+	int scheduleCount = 0;
+	while (run && aptMainLoop()) {
+		if (scheduleCount++%4==0) svcSignalEvent(event2);
 
 		hidScanInput();
 		if (hidKeysDown() & KEY_START) run = false;
@@ -181,7 +217,7 @@ void f_UI(void* arg) {
 
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
-			sftd_draw_textf(font, 0, 0, RGBA8(0,0,0,255), fontSize, "int2%i", int2);
+			sftd_draw_textf(font, 0, 0, RGBA8(0,0,0,255), fontSize, "int1%i", int1);
 			/*
 			// there is a segfault somewhere here
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
@@ -214,91 +250,6 @@ void f_UI(void* arg) {
 			// progress bar
 			sf2d_draw_rectangle(0, 0, 320, 10, RGBA8(255,106,0,255));
 			sf2d_draw_rectangle(20, 0, progress*(320-20*2), 9, RGBA8(0,0,0,255));
-		}
-		sf2d_end_frame();
-
-		sf2d_swapbuffers();
-	}
-}
-
-void f_player(void* arg) {
-	while(true) {
-		playFile("sdmc:/Music/03 - Rosalina.mp3");
-		playFile("sdmc:/Music/17 - F-Zero.mp3");
-	}
-}
-
-void threadFunction1(void* arg) {
-	while (run) {
-		svcWaitSynchronization(event1, U64_MAX);
-		svcClearEvent(event1);
-		int1++;
-	}
-}
-void threadFunction2(void* arg) {
-	while (run) {
-		svcWaitSynchronization(event2, U64_MAX);
-		svcClearEvent(event2);
-		int2++;
-	}
-}
-
-int main(int argc, char** argv)
-{
-	sftd_init();
-	sf2d_init();
-	romfsInit();
-	sdmcInit();
-
-	sf2d_set_clear_color(RGBA8(255,106,0, 255));
-	sf2d_set_vblank_wait(0);
-	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
-
-	aptSetSleepAllowed(false);
-
-	//f_UI(NULL);
-
-	//f_player(NULL);
-
-	//Thread t = threadCreate(f_UI, NULL, STACKSIZE, 0x18, -2, true);
-	//f_player(NULL);
-
-	//Thread t = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
-	//f_UI(NULL);
-
-	/*
-	while (run) {
-		svcSleepThread(100000000);
-	}
-	*/
-
-	svcCreateEvent(&event1, 0);
-	svcCreateEvent(&event2, 0);
-
-	Thread t1 = threadCreate(threadFunction1, &int1, STACKSIZE, 0x18, -2, true);
-	//Thread t1 = threadCreate(f_UI, &int1, STACKSIZE, 0x18, -2, true);
-	//Thread t2 = threadCreate(threadFunction2, &int2, STACKSIZE, 0x18, -2, true);
-	Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
-
-	int scheduler_count = 0;
-	while (run) {
-		scheduler_count++;
-		if (scheduler_count % 16 != 0) {
-			svcSignalEvent(event1);
-		} else {
-			svcSignalEvent(event2);
-		}
-		gspWaitForVBlank();
-
-		sf2d_start_frame(GFX_TOP, GFX_LEFT);
-		{
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "int1: %i", int1);
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "int2: %i", int2);
-		}
-		sf2d_end_frame();
-
-		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
-		{
 		}
 		sf2d_end_frame();
 
