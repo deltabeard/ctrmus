@@ -222,9 +222,9 @@ void f_UI(void* arg) {
 }
 
 void f_player(void* arg) {
-	while(run) {
-		playFile("sdmc:/Music/17 - F-Zero.mp3");
+	while(true) {
 		playFile("sdmc:/Music/03 - Rosalina.mp3");
+		playFile("sdmc:/Music/17 - F-Zero.mp3");
 	}
 }
 
