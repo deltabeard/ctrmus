@@ -34,6 +34,11 @@ volatile int nowPlaying = 0;
 // PLAYER to UI
 volatile float progress = 0;
 
+int nbFolderNames = 70;
+int nbListNames = 20;
+char** foldernames = NULL;
+char** listnames = NULL;
+
 void listClicked(int hilit) {
 	/*
 	nowPlaying = hilit;
@@ -42,6 +47,14 @@ void listClicked(int hilit) {
 }
 
 void folderClicked(int hilit) {
+	char* folderentry = foldernames[hilit];
+	char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
+	memcpy(newListNames, listnames, nbListNames*sizeof(char*));
+	newListNames[nbListNames] = (char*)malloc((strlen(folderentry)+1)*sizeof(char));
+	memcpy(newListNames[nbListNames], folderentry, strlen(folderentry)+1);
+	nbListNames++;
+	free(listnames);
+	listnames = newListNames;
 }
 
 void updateList(
@@ -62,7 +75,7 @@ void updateList(
 	} else {
 		if (touchWasPressed) { // keys were just released
 			if (orgTouchPad->py != 256) { // we clicked, we didn't scroll
-				(*clicked)(hilit);
+				(*clicked)(*hilit);
 			}
 		}
 	}
@@ -74,34 +87,10 @@ char* basename(char* s) {
 	return s+i+1;
 }
 
-volatile int int1 = 0;
-volatile int int2 = 0;
-
-char** foldernames = NULL;
-char** listnames = NULL;
-
-void f_UI(void* arg) {
-}
-
 void f_player(void* arg) {
 	while(true) {
 		playFile("sdmc:/Music/03 - Rosalina.mp3");
 		playFile("sdmc:/Music/17 - F-Zero.mp3");
-	}
-}
-
-void threadFunction1(void* arg) {
-	while (run) {
-		svcWaitSynchronization(event1, U64_MAX);
-		svcClearEvent(event1);
-		int1++;
-	}
-}
-void threadFunction2(void* arg) {
-	while (run) {
-		svcWaitSynchronization(event2, U64_MAX);
-		svcClearEvent(event2);
-		int2++;
 	}
 }
 
@@ -119,10 +108,10 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 	svcCreateEvent(&event2, 0);
 
-	Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	// UNCOMMENT TO GET SOUND IN BACKGROUND
+	//Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
 	const char* baseFolderName = "filepath/foldername00";
-	int nbFolderNames = 70;
 	foldernames = (char**)malloc(nbFolderNames*sizeof(char*));
 	for (int i=0; i<nbFolderNames; i++) {
 		foldernames[i] = (char*)malloc((strlen(baseFolderName)+1)*sizeof(char));
@@ -132,7 +121,6 @@ int main(int argc, char** argv)
 		foldernames[i][strlen(baseFolderName)-0] = 0;
 	}
 	const char* baseListName = "filepath/listname00";
-	int nbListNames = 30;
 	listnames = (char**)malloc(nbListNames*sizeof(char*));
 	for (int i=0; i<nbListNames; i++) {
 		listnames[i] = (char*)malloc((strlen(baseListName)+1)*sizeof(char));
@@ -141,7 +129,6 @@ int main(int argc, char** argv)
 		listnames[i][strlen(baseListName)-2] = '0' + (i/10%10);
 		listnames[i][strlen(baseListName)-0] = 0;
 	}
-	// TODO has to be freed somewhere
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
@@ -217,13 +204,20 @@ int main(int argc, char** argv)
 
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
-			sftd_draw_textf(font, 0, 0, RGBA8(0,0,0,255), fontSize, "int1%i", int1);
 			/*
-			// there is a segfault somewhere here
+			// there was a segfault somewhere here at some point
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
 			*/
+			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
+			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
+
+			char* folderentry = foldernames[(int)fmax(0,hilitFolder)];
+			char* test = malloc((strlen(folderentry)+1)*sizeof(char));
+			memcpy(test, folderentry, strlen(folderentry)+1);
+			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "hilit folder: %s", basename(test));
+			free(test);
 		}
 		sf2d_end_frame();
 
@@ -233,17 +227,19 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				//sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, "list%i", i);
+				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				//sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, "list%i", i);
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				//sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, "folder%i", i);
+				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				//sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, "folder%i", i);
 			}
+
+			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
 
 			sf2d_draw_rectangle(paneBorder, 0, 1, 240, RGBA8(255,255,255,255));
 
@@ -255,6 +251,13 @@ int main(int argc, char** argv)
 
 		sf2d_swapbuffers();
 	}
+
+	for (int i=0; i<nbFolderNames; i++) free(foldernames[i]);
+	free(foldernames);
+	for (int i=0; i<nbListNames; i++) free(listnames[i]);
+	free(listnames);
+
+	// TODO kill playback
 
 	sftd_free_font(font);
 
