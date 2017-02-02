@@ -14,6 +14,14 @@ void setMp3(struct decoder_fn* decoder);
 int initMp3(const char* file);
 
 /**
+ * Obtain metadata from the MP3 file.
+ *
+ * \param	metadata	Structure to store metadata in.
+ * \return				0 on success, else failure.
+ */
+int metadataMp3(struct metadata_t* metadata);
+
+/**
  * Get sampling rate of MP3 file.
  *
  * \return	Sampling rate.

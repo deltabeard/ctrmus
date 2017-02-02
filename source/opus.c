@@ -17,6 +17,7 @@ static const int		buffSize = 32 * 1024;
 void setOpus(struct decoder_fn* decoder)
 {
 	decoder->init = &initOpus;
+	decoder->metadata = NULL;
 	decoder->rate = &rateOpus;
 	decoder->channels = &channelOpus;
 	decoder->buffSize = buffSize;

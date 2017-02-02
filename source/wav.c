@@ -19,6 +19,7 @@ static uint8_t		channels;
 void setWav(struct decoder_fn* decoder)
 {
 	decoder->init = &initWav;
+	decoder->metadata = NULL;;
 	decoder->rate = &rateWav;
 	decoder->channels = &channelWav;
 	decoder->buffSize = buffSize;

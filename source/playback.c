@@ -12,6 +12,7 @@
 int playFile(const char* file)
 {
 	struct decoder_fn decoder;
+	struct metadata_t metadata;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
 	ndspWaveBuf		waveBuf[2];
@@ -42,6 +43,8 @@ int playFile(const char* file)
 			return 0;
 	}
 
+	consoleClear();
+
 	if(R_FAILED(ndspInit()))
 	{
 		printf("Initialising ndsp failed.");
@@ -52,6 +55,11 @@ int playFile(const char* file)
 	{
 		printf("Error initialising decoder: %d\n", ret);
 		goto out;
+	}
+
+	if(decoder.metadata != NULL && (*decoder.metadata)(&metadata) == 0)
+	{
+		// Print shit
 	}
 
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));

@@ -20,6 +20,7 @@ static uint8_t			channels;
 void setMp3(struct decoder_fn* decoder)
 {
 	decoder->init = &initMp3;
+	decoder->metadata = &metadataMp3;
 	decoder->rate = &rateMp3;
 	decoder->channels = &channelMp3;
 	/*
@@ -72,6 +73,17 @@ int initMp3(const char* file)
 	*buffSize = mpg123_outblock(mh) * 16;
 
 	return 0;
+}
+
+/**
+ * Obtain metadata from the MP3 file.
+ *
+ * \param	metadata	Structure to store metadata in.
+ * \return				0 on success, else failure.
+ */
+int metadataMp3(struct metadata_t* metadata)
+{
+	return -1;
 }
 
 /**

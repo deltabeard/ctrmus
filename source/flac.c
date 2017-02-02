@@ -16,6 +16,7 @@ static const int	buffSize = 16 * 1024;
 void setFlac(struct decoder_fn* decoder)
 {
 	decoder->init = &initFlac;
+	decoder->metadata = NULL;
 	decoder->rate = &rateFlac;
 	decoder->channels = &channelFlac;
 	decoder->buffSize = buffSize;

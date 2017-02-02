@@ -7,6 +7,9 @@
  * LICENSE file.
  */
 
+/* Required for asprintf */
+#define _GNU_SOURCE
+
 #include <3ds.h>
 #include <dirent.h>
 #include <stdbool.h>
