@@ -269,95 +269,103 @@ int main(int argc, char** argv)
 }
 
 /**
- * List current directory.
+ * Function used for qsort(), to sort string in alphabetical order (A-Z).
  *
- * \param	from	First entry in directory to list.
- * \param	max		Maximum number of entries to list. Must be > 0.
- * \param	select	File to show as selected. Must be > 0.
- * \return			Number of entries listed or negative on error.
+ * \param	p1	First string.
+ * \param	p2	Second string.
+ * \return		strcasecmp return value.
  */
-int listDir(int from, int max, int select)
+static int sortName(const void *p1, const void *p2)
 {
-	DIR				*dp;
-	struct dirent	*ep;
-	int				fileNum = 0;
-	int				listed = 0;
+	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
+}
+
+/**
+ * Obtain array of files and directories in current directory.
+ *
+ * \param	dirs	Unallocated pointer to store allocated directory names.
+ *					This must be freed after use.
+ * \param	files	Unallocated pointer to store allocated file names.
+ *					This must be freed after use.
+ * \param	sort	Sorting algorithm to use.
+ * \return			Number of entries in total or negative on error.
+ */
+static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort)
+{
+	DIR*			dp;
+	struct dirent*	ep;
+	int				ret = -1;
 	char*			wd = getcwd(NULL, 0);
+	int				num_dirs = 0;
+	int				num_files = 0;
 
 	if(wd == NULL)
 		goto err;
 
-	consoleClear();
-	printf("Dir: %.33s\n", wd);
-
 	if((dp = opendir(wd)) == NULL)
 		goto err;
 
-	if(from == 0)
-	{
-		printf("%c../\n", select == 0 ? '>' : ' ');
-		listed++;
-	}
-
+	dirs = NULL;
+	files = NULL;
+	
 	while((ep = readdir(dp)) != NULL)
 	{
-		fileNum++;
+		if(ep->d_type == DT_DIR)
+		{
+			num_dirs++;
+			dirs = realloc(dirs, num_dirs * sizeof(char*));
 
-		if(fileNum <= from)
-			continue;
+			if((*(dirs + num_dirs) = strdup(ep->d_name)) == NULL)
+				goto err;
+		}
+		else
+		{
+			num_files++;
+			files = realloc(files, num_files * sizeof(char*));
 
-		listed++;
-
-		printf("%c%s%.37s%s\n",
-				select == fileNum ? '>' : ' ',
-				ep->d_type == DT_DIR ? "\x1b[34;1m" : "",
-				ep->d_name,
-				ep->d_type == DT_DIR ? "/\x1b[0m" : "");
-
-		if(fileNum == max + from)
-			break;
+			if((*(files + num_files) = strdup(ep->d_name)) == NULL)
+				goto err;
+		}
 	}
+
+	if(sort == SORT_NAME_AZ)
+	{
+		qsort(&dirs, num_dirs, sizeof(char*), sortName);
+		qsort(&files, num_files, sizeof(char*), sortName);
+	}
+
+	/* NULL terminate arrays */
+	dirs = realloc(dirs, (num_dirs * sizeof(char*)) + 1);
+	*(dirs + num_dirs + 1) = NULL;
+
+	files = realloc(files, (num_files * sizeof(char*)) + 1);
+	*(files + num_files + 1) = NULL;
 
 	if(closedir(dp) != 0)
 		goto err;
 
-out:
-	free(wd);
-	return listed;
+	ret = 0;
 
 err:
-	listed = -1;
-	goto out;
+	free(wd);
+	return ret;
 }
 
 /**
- * Get number of files in current working folder
- *
- * \return	Number of files in current working folder, -1 on failure with
- *			errno set.
+ * Free memory used by an array of strings.
+ * Call this with dirs and files as parameters to free memory allocated by
+ * obtainDir().
  */
-int getNumberFiles(void)
+static void freeDir(char** strs)
 {
-	DIR				*dp;
-	struct dirent	*ep;
-	char*			wd = getcwd(NULL, 0);
-	int				ret = 0;
+	while(*strs != NULL)
+	{
+		free(*strs);
+		strs++;
+	}
 
-	if(wd == NULL)
-		goto err;
+	free(strs);
+	strs = NULL;
 
-	if((dp = opendir(wd)) == NULL)
-		goto err;
-
-	while((ep = readdir(dp)) != NULL)
-		ret++;
-
-	closedir(dp);
-
-out:
-	return ret;
-
-err:
-	ret = -1;
-	goto out;
+	return;
 }
