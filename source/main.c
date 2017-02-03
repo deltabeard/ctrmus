@@ -43,8 +43,6 @@ int main(int argc, char **argv)
 
 	fileMax = getNumberFiles();
 
-	consoleSelect(&topScreen);
-	puts("Log");
 	consoleSelect(&bottomScreen);
 
 	/**
@@ -55,8 +53,8 @@ int main(int argc, char **argv)
 
 	while(aptMainLoop())
 	{
-		u32 kDown;
-		u32 kHeld;
+		u32			kDown;
+		u32			kHeld;
 		static u64	mill = 0;
 
 		hidScanInput();
@@ -79,9 +77,9 @@ int main(int argc, char **argv)
 		if(kDown)
 			mill = osGetTime();
 
-		if((kDown & KEY_UP || ((kHeld & KEY_UP) &&
-						osGetTime() - mill > 500)) &&
-				fileNum > 0 && fileNum > 0)
+		if((kDown & KEY_UP ||
+					((kHeld & KEY_UP) && (osGetTime() - mill > 500))) &&
+				fileNum > 0)
 		{
 			fileNum--;
 
@@ -93,9 +91,9 @@ int main(int argc, char **argv)
 				err_print("Unable to list directory.");
 		}
 
-		if((kDown & KEY_DOWN || ((kHeld & KEY_DOWN) &&
-						osGetTime() - mill > 500)) &&
-				fileNum < fileMax && fileNum < fileMax)
+		if((kDown & KEY_DOWN ||
+					((kHeld & KEY_DOWN) && (osGetTime() - mill > 500))) &&
+				fileNum < fileMax)
 		{
 			fileNum++;
 
