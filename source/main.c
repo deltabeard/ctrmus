@@ -130,20 +130,11 @@ int main(int argc, char **argv)
 			int				audioFileNum = 0;
 			DIR				*dp;
 			struct dirent	*ep;
-			char*			wd = getcwd(NULL, 0);
 
-			if(wd == NULL)
-			{
-				err_print("wd");
-				goto err;
-			}
-
-			dp = opendir(wd);
+			dp = opendir(".");
 
 			if(dp != NULL)
 			{
-				char* file = NULL;
-
 				while((ep = readdir(dp)) != NULL)
 				{
 					if(audioFileNum == fileNum - 1)
@@ -165,24 +156,12 @@ int main(int argc, char **argv)
 						err_print("Unable to list directory.");
 
 					closedir(dp);
-					free(wd);
 					continue;
 				}
 
-				if(asprintf(&file, "%s%s", wd, ep->d_name) == -1)
-				{
-					err_print("Constructing file name failed.");
-					file = NULL;
-				}
-				else
-				{
-					consoleSelect(&topScreen);
-					playFile(file);
-					consoleSelect(&bottomScreen);
-				}
-
-				free(file);
-				free(wd);
+				consoleSelect(&topScreen);
+				playFile(ep->d_name);
+				consoleSelect(&bottomScreen);
 
 				if(closedir(dp) != 0)
 					err_print("Closing directory failed.");
@@ -293,13 +272,9 @@ int getNumberFiles(void)
 {
 	DIR				*dp;
 	struct dirent	*ep;
-	char*			wd = getcwd(NULL, 0);
 	int				ret = 0;
 
-	if(wd == NULL)
-		goto err;
-
-	if((dp = opendir(wd)) == NULL)
+	if((dp = opendir(".")) == NULL)
 		goto err;
 
 	while((ep = readdir(dp)) != NULL)
