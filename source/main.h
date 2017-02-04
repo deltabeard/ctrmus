@@ -58,4 +58,4 @@ static int obtainDir(char*** dirlist, int* dirs, char*** filelist, int* files,
  * \param strs	List to free.
  * \param size	Size of list.
  */
-static void freeDir(char*** strs, int size);
+static void freeList(char*** strs, int size);

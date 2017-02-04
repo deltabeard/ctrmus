@@ -106,12 +106,6 @@ int main(int argc, char** argv)
 	romfsInit();
 	sdmcInit();
 
-	FILE* file = fopen("ctrmus_debug","rb");
-	if (file != NULL) {
-		debug = true;
-		fclose(file);
-	};
-
 	chdir(DEFAULT_DIR);
 	chdir("Music");
 
@@ -125,31 +119,25 @@ int main(int argc, char** argv)
 	Thread t2 = NULL;
 	if (!debug) t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
-	// WORKING VERSION
-	int nbDirs;
-	int nbFiles;
-	obtainFoldersSizes(&nbDirs, &nbFiles);
-	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
-	char** files = (char**)malloc(nbFiles*sizeof(char*));
-	obtainFolders(dirs, files, SORT_NAME_AZ);
-	// todo: put files and folders together
-	foldernames = files;
-	nbFolderNames = nbFiles;
-
-	/* TODO: Remove debugging */
+	// TODO: put files and folders together
 	obtainDir(&dirlist, &dirs, &filelist, &files, sort);
-	FILE* debug_file = fopen("sdmc:/ctrmus_debug.txt", "w+");
+	/* TODO: Use dirlist and dirs directly */
+	foldernames = dirlist;
+	nbFolderNames = dirs;
 
-	for(int i = 0; i < dirs; i++)
-		fprintf(debug_file, "%s\n", dirlist[i]);
+	/* TODO: Remove debugging, or make it nicer */
+	if(debug)
+	{
+		FILE* debug_file = fopen("sdmc:/ctrmus_debug.txt", "w+");
 
-	for(int i = 0; i < files; i++)
-		fprintf(debug_file, "%s\n", filelist[i]);
+		for(int i = 0; i < dirs; i++)
+			fprintf(debug_file, "%s\n", dirlist[i]);
 
-	fclose(debug_file);
+		for(int i = 0; i < files; i++)
+			fprintf(debug_file, "%s\n", filelist[i]);
 
-	freeDir(&dirlist, dirs);
-	freeDir(&filelist, files);
+		fclose(debug_file);
+	}
 
 	const char* baseListName = "filepath/listname00";
 	listnames = (char**)malloc(nbListNames*sizeof(char*));
@@ -273,10 +261,8 @@ int main(int argc, char** argv)
 		sf2d_swapbuffers();
 	}
 
-	for (int i=0; i<nbFolderNames; i++) free(foldernames[i]);
-	free(foldernames);
-	for (int i=0; i<nbListNames; i++) free(listnames[i]);
-	free(listnames);
+	freeList(&dirlist, dirs);
+	freeList(&filelist, files);
 
 	// TODO kill playback
 	run = false;
@@ -379,7 +365,7 @@ err:
  * \param strs	List to free.
  * \param size	Size of list.
  */
-static void freeDir(char*** strs, int size)
+static void freeList(char*** strs, int size)
 {
 	char** tmp = *strs;
 
