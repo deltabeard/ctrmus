@@ -81,12 +81,6 @@ void updateList(
 	}
 }
 
-char* basename(char* s) {
-	int i = strlen(s);
-	while (i!=-1 && s[i] != '/') i--;
-	return s+i+1;
-}
-
 void f_player(void* arg) {
 	while(run) {
 		playFile("sdmc:/Music/03 - Rosalina.mp3");
@@ -238,14 +232,14 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<nbListNames; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, listnames[i]);
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<nbFolderNames; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, foldernames[i]);
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
