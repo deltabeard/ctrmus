@@ -7,6 +7,8 @@
  * LICENSE file.
  */
 
+#define _GNU_SOURCE
+
 #include <3ds.h>
 #include <dirent.h>
 #include <stdbool.h>
@@ -81,7 +83,7 @@ void updateList(
 	}
 }
 
-char* basename(char* s) {
+char* getBasename(char* s) {
 	int i = strlen(s);
 	while (i!=-1 && s[i] != '/') i--;
 	return s+i+1;
@@ -206,7 +208,7 @@ int main(int argc, char** argv)
 		{
 			/*
 			// there was a segfault somewhere here at some point
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
+			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", getBasename(listnames[nowPlaying]));
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
 			*/
@@ -216,7 +218,7 @@ int main(int argc, char** argv)
 			char* folderentry = foldernames[(int)fmax(0,hilitFolder)];
 			char* test = malloc((strlen(folderentry)+1)*sizeof(char));
 			memcpy(test, folderentry, strlen(folderentry)+1);
-			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "hilit folder: %s", basename(test));
+			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "hilit folder: %s", getBasename(test));
 			free(test);
 		}
 		sf2d_end_frame();
@@ -227,7 +229,7 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
 			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
-				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
+				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, getBasename(listnames[i]));
 				//sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, "list%i", i);
 			}
 
@@ -235,7 +237,7 @@ int main(int argc, char** argv)
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
 			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
-				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
+				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, getBasename(foldernames[i]));
 				//sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, "folder%i", i);
 			}
 
@@ -269,103 +271,75 @@ int main(int argc, char** argv)
 }
 
 /**
- * Function used for qsort(), to sort string in alphabetical order (A-Z).
+ * Sort string in alphabetical order (A-Z) regardless of case.
  *
- * \param	p1	First string.
- * \param	p2	Second string.
+ * \param	a	dirent struct.
+ * \param	b	dirent struct.
  * \return		strcasecmp return value.
  */
-static int sortName(const void *p1, const void *p2)
+static int sortName(const struct dirent** a, const struct dirent** b)
 {
-	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
+	return strcasecmp((*a)->d_name, (*b)->d_name);
+}
+
+/**
+ * True if dirent is referring to a directory.
+ *
+ * \param a	dirent struct.
+ * \return	1 if directory, else 0.
+ */
+static int isDir(const struct dirent* a)
+{
+	/* TODO: Filter "." directory */
+	/* TODO: Add option to filter hidden files ".*" */
+	return a->d_type == DT_DIR;
+}
+
+/**
+ * True if dirent is referring to a file.
+ *
+ * \param a	dirent struct.
+ * \return	1 if file, else 0.
+ */
+static int isFile(const struct dirent* a)
+{
+	return a->d_type == DT_REG;
 }
 
 /**
  * Obtain array of files and directories in current directory.
+ * Use dirlist[a]->d_name to return the name of a directory in the structure,
+ * where 0 ≤ a < dirs. 
  *
- * \param	dirs	Unallocated pointer to store allocated directory names.
- *					This must be freed after use.
- * \param	files	Unallocated pointer to store allocated file names.
- *					This must be freed after use.
- * \param	sort	Sorting algorithm to use.
- * \return			Number of entries in total or negative on error.
+ * \param	dirlist		Pointer to store allocated directory names.
+ *						This must be freed after use.
+ * \param	dirs		Pointer to store number of directories.
+ * \param	filelist	Pointer to store allocated file names.
+ *						This must be freed after use.
+ * \param	files		Pointer to store number of files.
+ * \param	sort		Sorting algorithm to use.
+ * \return				Number of entries in total or negative on error.
  */
-static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort)
+static int obtainDir(struct dirent** dirlist, int* dirs,
+		struct dirent** filelist, int* files, enum sorting_algorithms sort)
 {
-	DIR*			dp;
-	struct dirent*	ep;
-	int				ret = -1;
-	char*			wd = getcwd(NULL, 0);
-	int				num_dirs = 0;
-	int				num_files = 0;
+	*dirs = scandir(".", &dirlist, isDir, sortName);
+	*files = scandir(".", &filelist, isFile, sortName);
 
-	if(wd == NULL)
-		goto err;
+	if(*dirs < 0 || *files < 0)
+		return -1;
 
-	if((dp = opendir(wd)) == NULL)
-		goto err;
-
-	dirs = NULL;
-	files = NULL;
-	
-	while((ep = readdir(dp)) != NULL)
-	{
-		if(ep->d_type == DT_DIR)
-		{
-			num_dirs++;
-			dirs = realloc(dirs, num_dirs * sizeof(char*));
-
-			if((*(dirs + num_dirs) = strdup(ep->d_name)) == NULL)
-				goto err;
-		}
-		else
-		{
-			num_files++;
-			files = realloc(files, num_files * sizeof(char*));
-
-			if((*(files + num_files) = strdup(ep->d_name)) == NULL)
-				goto err;
-		}
-	}
-
-	if(sort == SORT_NAME_AZ)
-	{
-		qsort(&dirs, num_dirs, sizeof(char*), sortName);
-		qsort(&files, num_files, sizeof(char*), sortName);
-	}
-
-	/* NULL terminate arrays */
-	dirs = realloc(dirs, (num_dirs * sizeof(char*)) + 1);
-	*(dirs + num_dirs + 1) = NULL;
-
-	files = realloc(files, (num_files * sizeof(char*)) + 1);
-	*(files + num_files + 1) = NULL;
-
-	if(closedir(dp) != 0)
-		goto err;
-
-	ret = 0;
-
-err:
-	free(wd);
-	return ret;
+	return *dirs + *files;
 }
 
 /**
- * Free memory used by an array of strings.
- * Call this with dirs and files as parameters to free memory allocated by
- * obtainDir().
+ * Free memory used by lists returned by obtainDir().
  */
-static void freeDir(char** strs)
+static void freeList(struct dirent** list, int size)
 {
-	while(*strs != NULL)
-	{
-		free(*strs);
-		strs++;
-	}
+	while(size--)
+		free(list[size]);
 
-	free(strs);
-	strs = NULL;
-
+	free(list);
 	return;
 }
