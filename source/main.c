@@ -94,12 +94,21 @@ void f_player(void* arg) {
 	}
 }
 
+int countCharStars(char** t) {
+	int n = 0;
+	while (t[n]!=NULL) n++;
+	return n;
+}
+
 int main(int argc, char** argv)
 {
 	sftd_init();
 	sf2d_init();
 	romfsInit();
 	sdmcInit();
+
+	chdir(DEFAULT_DIR);
+	chdir("Music");
 
 	sf2d_set_clear_color(RGBA8(255,106,0, 255));
 	sf2d_set_vblank_wait(0);
@@ -111,15 +120,27 @@ int main(int argc, char** argv)
 	// UNCOMMENT TO GET SOUND IN BACKGROUND
 	//Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
-	const char* baseFolderName = "filepath/foldername00";
-	foldernames = (char**)malloc(nbFolderNames*sizeof(char*));
-	for (int i=0; i<nbFolderNames; i++) {
-		foldernames[i] = (char*)malloc((strlen(baseFolderName)+1)*sizeof(char));
-		memcpy(foldernames[i], baseFolderName, strlen(baseFolderName));
-		foldernames[i][strlen(baseFolderName)-1] = '0' + (i%10);
-		foldernames[i][strlen(baseFolderName)-2] = '0' + (i/10%10);
-		foldernames[i][strlen(baseFolderName)-0] = 0;
-	}
+/*
+	// WORKING VERSION
+	int nbDirs;
+	int nbFiles;
+	obtainFoldersSizes(&nbDirs, &nbFiles);
+
+	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
+	char** files = (char**)malloc(nbFiles*sizeof(char*));
+	obtainFolders(dirs, files, SORT_NAME_AZ);
+	foldernames = files;
+	nbFolderNames = nbFiles;
+*/
+/*
+	// NON WORKING VERSION
+	int nbDirs, nbFiles;
+	char** dirs;
+	char** files;
+	obtainDir(&dirs, &files, &nbDirs, &nbFiles, SORT_NAME_AZ);
+	nbFolderNames = nbFiles;
+*/
+
 	const char* baseListName = "filepath/listname00";
 	listnames = (char**)malloc(nbListNames*sizeof(char*));
 	for (int i=0; i<nbListNames; i++) {
@@ -212,12 +233,16 @@ int main(int argc, char** argv)
 			*/
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
+			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
+			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
 
+			/*
 			char* folderentry = foldernames[(int)fmax(0,hilitFolder)];
 			char* test = malloc((strlen(folderentry)+1)*sizeof(char));
 			memcpy(test, folderentry, strlen(folderentry)+1);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "hilit folder: %s", basename(test));
 			free(test);
+			*/
 		}
 		sf2d_end_frame();
 
@@ -280,6 +305,73 @@ static int sortName(const void *p1, const void *p2)
 	return strcasecmp(*(char* const*)p1, *(char* const*)p2);
 }
 
+static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
+	DIR*			dp;
+	struct dirent*	ep;
+	int				ret = -1;
+	char*			wd = getcwd(NULL, 0);
+	int				num_dirs = 0;
+	int				num_files = 0;
+
+	if(wd == NULL) goto err;
+	if((dp = opendir(wd)) == NULL) goto err;
+
+	while((ep = readdir(dp)) != NULL) {
+		if(ep->d_type == DT_DIR) {
+			num_dirs++;
+		} else {
+			num_files++;
+		}
+	}
+	ret = 0;
+	*nbDirs = num_dirs;
+	*nbFiles = num_files;
+
+err:
+	free(wd);
+	return ret;
+}
+static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort) {
+	DIR*			dp;
+	struct dirent*	ep;
+	int				ret = -1;
+	char*			wd = getcwd(NULL, 0);
+	int				num_dirs = 0;
+	int				num_files = 0;
+
+	if(wd == NULL)
+		goto err;
+	if((dp = opendir(wd)) == NULL)
+		goto err;
+
+	while((ep = readdir(dp)) != NULL)
+	{
+		char* temp = strdup(ep->d_name);
+		if (temp == NULL) goto err;
+		if(ep->d_type == DT_DIR)
+		{
+			dirs[num_dirs] = temp;
+			num_dirs++;
+		}
+		else
+		{
+			files[num_files] = temp;
+			num_files++;
+		}
+	}
+
+	if(sort == SORT_NAME_AZ)
+	{
+		qsort(&dirs, num_dirs, sizeof(char*), sortName);
+		qsort(&files, num_files, sizeof(char*), sortName);
+	}
+	ret = 0;
+
+err:
+	free(wd);
+	return ret;
+}
+
 /**
  * Obtain array of files and directories in current directory.
  *
@@ -290,7 +382,7 @@ static int sortName(const void *p1, const void *p2)
  * \param	sort	Sorting algorithm to use.
  * \return			Number of entries in total or negative on error.
  */
-static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort)
+static int obtainDir(char** *dirs_, char** *files_, int *num_dirs_, int *num_files_, enum sorting_algorithms sort)
 {
 	DIR*			dp;
 	struct dirent*	ep;
@@ -305,36 +397,36 @@ static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort)
 	if((dp = opendir(wd)) == NULL)
 		goto err;
 
-	dirs = NULL;
-	files = NULL;
-	
+	char** dirs = NULL;
+	char** files = NULL;
+
 	while((ep = readdir(dp)) != NULL)
 	{
+		char* temp = strdup(ep->d_name);
+		if (temp == NULL) goto err;
 		if(ep->d_type == DT_DIR)
 		{
-			num_dirs++;
 			dirs = realloc(dirs, num_dirs * sizeof(char*));
-
-			if((*(dirs + num_dirs) = strdup(ep->d_name)) == NULL)
-				goto err;
+			*(dirs + num_dirs) = strdup(ep->d_name);
+			num_dirs++;
 		}
 		else
 		{
-			num_files++;
 			files = realloc(files, num_files * sizeof(char*));
-
-			if((*(files + num_files) = strdup(ep->d_name)) == NULL)
-				goto err;
+			*(files + num_files) = strdup(ep->d_name);
+			num_files++;
 		}
 	}
 
+/*
 	if(sort == SORT_NAME_AZ)
 	{
 		qsort(&dirs, num_dirs, sizeof(char*), sortName);
 		qsort(&files, num_files, sizeof(char*), sortName);
 	}
+*/
 
-	/* NULL terminate arrays */
+	// NULL terminate arrays
 	dirs = realloc(dirs, (num_dirs * sizeof(char*)) + 1);
 	*(dirs + num_dirs + 1) = NULL;
 
@@ -345,6 +437,10 @@ static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort)
 		goto err;
 
 	ret = 0;
+	*num_dirs_ = num_dirs;
+	*num_files_ = num_files;
+	*dirs_ = dirs;
+	*files_ = files;
 
 err:
 	free(wd);

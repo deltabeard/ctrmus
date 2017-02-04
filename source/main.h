@@ -17,6 +17,9 @@ enum sorting_algorithms {
 	SORT_SIZE_SMALL,
 };
 
+static int obtainFoldersSizes(int *nbDirs, int *nbFiles);
+static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort);
+
 /**
  * Obtain array of files and directories in current directory.
  *
@@ -27,7 +30,7 @@ enum sorting_algorithms {
  * \param	sort	Sorting algorithm to use.
  * \return			Number of entries in total or negative on error.
  */
-static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort);
+static int obtainDir(char** *dirs_, char** *files_, int *num_dirs_, int *num_files_, enum sorting_algorithms sort);
 
 /**
  * Free memory used by an array of strings.
