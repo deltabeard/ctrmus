@@ -10,23 +10,28 @@
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 
-/* Maximum number of lines that can be displayed */
-#define	MAX_LIST		27
+enum sorting_algorithms {
+	SORT_NONE,
+	SORT_NAME_AZ,
+	SORT_DATE_NEW,
+	SORT_SIZE_SMALL,
+};
 
 /**
- * Get number of files in current working folder
+ * Obtain array of files and directories in current directory.
  *
- * \return	Number of files in current working folder, -1 on failure with
- *			errno set.
+ * \param	dirs	Unallocated pointer to store allocated directory names.
+ *					This must be freed after use.
+ * \param	files	Unallocated pointer to store allocated file names.
+ *					This must be freed after use.
+ * \param	sort	Sorting algorithm to use.
+ * \return			Number of entries in total or negative on error.
  */
-int getNumberFiles(void);
+static int obtainDir(char** dirs, char** files, enum sorting_algorithms sort);
 
 /**
- * List current directory.
- *
- * \param	from	First entry in directory to list.
- * \param	max		Maximum number of entries to list. Must be > 0.
- * \param	select	File to show as selected. Must be > 0.
- * \return			Number of entries listed or negative on error.
+ * Free memory used by an array of strings.
+ * Call this with dirs and files as parameters to free memory allocated by
+ * obtainDir().
  */
-int listDir(int from, int max, int select);
+static void freeDir(char** strs);
