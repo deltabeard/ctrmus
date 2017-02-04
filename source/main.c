@@ -19,23 +19,25 @@
 
 #include "all.h"
 #include "main.h"
-#include "playback.h"
 #include "sync.h"
+#include "playback.h"
 
 #define STACKSIZE (16 * 1024)
+
+bool debug = false;
 
 sftd_font* font;
 int fontSize = 15;
 
 // UI to PLAYER
-volatile bool run = true;
-volatile int nowPlaying = 0;
+bool run = true;
+int nowPlaying = 0;
 
 // PLAYER to UI
 volatile float progress = 0;
 
-int nbFolderNames = 70;
-int nbListNames = 20;
+int nbFolderNames = 1;
+int nbListNames = 0;
 char** foldernames = NULL;
 char** listnames = NULL;
 
@@ -47,13 +49,11 @@ void listClicked(int hilit) {
 }
 
 void folderClicked(int hilit) {
-	char* folderentry = foldernames[hilit];
 	char** newListNames = (char**)malloc((nbListNames+1)*sizeof(char*));
 	memcpy(newListNames, listnames, nbListNames*sizeof(char*));
-	newListNames[nbListNames] = (char*)malloc((strlen(folderentry)+1)*sizeof(char));
-	memcpy(newListNames[nbListNames], folderentry, strlen(folderentry)+1);
+	newListNames[nbListNames] = strdup(foldernames[hilit]);
+	if (nbListNames != 0) free(listnames);
 	nbListNames++;
-	free(listnames);
 	listnames = newListNames;
 }
 
@@ -88,9 +88,8 @@ char* basename(char* s) {
 }
 
 void f_player(void* arg) {
-	while(true) {
+	while(run) {
 		playFile("sdmc:/Music/03 - Rosalina.mp3");
-		playFile("sdmc:/Music/17 - F-Zero.mp3");
 	}
 }
 
@@ -107,6 +106,12 @@ int main(int argc, char** argv)
 	romfsInit();
 	sdmcInit();
 
+	FILE* file = fopen("ctrmus_debug","rb");
+	if (file != NULL) {
+		debug = true;
+		fclose(file);
+	};
+
 	chdir(DEFAULT_DIR);
 	chdir("Music");
 
@@ -117,38 +122,19 @@ int main(int argc, char** argv)
 	aptSetSleepAllowed(false);
 	svcCreateEvent(&event2, 0);
 
-	// UNCOMMENT TO GET SOUND IN BACKGROUND
-	//Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	Thread t2 = NULL;
+	if (!debug) t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
 	// WORKING VERSION
 	int nbDirs;
 	int nbFiles;
 	obtainFoldersSizes(&nbDirs, &nbFiles);
-
 	char** dirs = (char**)malloc(nbDirs*sizeof(char*));
 	char** files = (char**)malloc(nbFiles*sizeof(char*));
 	obtainFolders(dirs, files, SORT_NAME_AZ);
+	// todo: put files and folders together
 	foldernames = files;
 	nbFolderNames = nbFiles;
-
-/*
-	// NON WORKING VERSION
-	int nbDirs, nbFiles;
-	char** dirs;
-	char** files;
-	obtainDir(&dirs, &files, &nbDirs, &nbFiles, SORT_NAME_AZ);
-	nbFolderNames = nbFiles;
-*/
-
-	const char* baseListName = "filepath/listname00";
-	listnames = (char**)malloc(nbListNames*sizeof(char*));
-	for (int i=0; i<nbListNames; i++) {
-		listnames[i] = (char*)malloc((strlen(baseListName)+1)*sizeof(char));
-		memcpy(listnames[i], baseListName, strlen(baseListName));
-		listnames[i][strlen(baseListName)-1] = '0' + (i%10);
-		listnames[i][strlen(baseListName)-2] = '0' + (i/10%10);
-		listnames[i][strlen(baseListName)-0] = 0;
-	}
 
 	touchPosition oldTouchPad;
 	touchPosition orgTouchPad;
@@ -156,10 +142,10 @@ int main(int argc, char** argv)
 	oldTouchPad.py = 0;
 	orgTouchPad = oldTouchPad;
 
-	float yFolder = -100; // will go through a minmax, don't worry'
+	float yFolder = -100; // will go through a minmax, don't worry
 	float vyFolder = 0;
 
-	float yList = 0;
+	float yList = -100; // will go through a minmax, don't worry
 	float vyList = 0;
 
 	float inertia = 10;
@@ -179,11 +165,11 @@ int main(int argc, char** argv)
 	u32 hlTextColor = RGBA8(255,0,0,255);
 
 	int scheduleCount = 0;
-	while (run && aptMainLoop()) {
-		if (scheduleCount++%4==0) svcSignalEvent(event2);
-
+	while (aptMainLoop()) {
 		hidScanInput();
-		if (hidKeysDown() & KEY_START) run = false;
+		if (hidKeysDown() & KEY_START) break;
+
+		if (scheduleCount++%4==0) svcSignalEvent(event2);
 
 		// scroll using touchpad
 		touchPosition touchPad;
@@ -225,22 +211,10 @@ int main(int argc, char** argv)
 		sf2d_start_frame(GFX_TOP, GFX_LEFT);
 		{
 			/*
-			// there was a segfault somewhere here at some point
-			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "Now playing: %s", basename(listnames[nowPlaying]));
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
-			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "Full path: %s", listnames[nowPlaying]);
-			*/
 			sftd_draw_textf(font, 0, fontSize*0, RGBA8(0,0,0,255), fontSize, "hilit Folder: %i", hilitFolder);
 			sftd_draw_textf(font, 0, fontSize*1, RGBA8(0,0,0,255), fontSize, "hilit List: %i", hilitList);
 			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "folder number: %i", nbDirs);
 			sftd_draw_textf(font, 0, fontSize*3, RGBA8(0,0,0,255), fontSize, "file number: %i", nbFiles);
-
-			/*
-			char* folderentry = foldernames[(int)fmax(0,hilitFolder)];
-			char* test = malloc((strlen(folderentry)+1)*sizeof(char));
-			memcpy(test, folderentry, strlen(folderentry)+1);
-			sftd_draw_textf(font, 0, fontSize*2, RGBA8(0,0,0,255), fontSize, "hilit folder: %s", basename(test));
-			free(test);
 			*/
 		}
 		sf2d_end_frame();
@@ -249,18 +223,16 @@ int main(int argc, char** argv)
 		{
 			// list entries
 			sf2d_draw_rectangle(1, 0, paneBorder, 240, bgColor);
-			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize; i++) {
+			for (int i = (yList+10)/cellSize; i < (240+yList)/cellSize && i<nbListNames; i++) {
 				sf2d_draw_rectangle(1, fmax(0,cellSize*i-yList), paneBorder, 1, lineColor);
 				sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, basename(listnames[i]));
-				//sftd_draw_textf(font, 0+10, cellSize*i-yList, i==hilitList?hlTextColor:textColor, fontSize, "list%i", i);
 			}
 
 			// folder entries
 			sf2d_draw_rectangle(paneBorder, 0, 320-1-(int)paneBorder, 240, bgColor);
-			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize; i++) {
+			for (int i = (yFolder+10)/cellSize; i < (240+yFolder)/cellSize && i<nbFolderNames; i++) {
 				sf2d_draw_rectangle(paneBorder, fmax(0,cellSize*i-yFolder), 320-1-(int)paneBorder, 1, lineColor);
 				sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, basename(foldernames[i]));
-				//sftd_draw_textf(font, paneBorder+10, cellSize*i-yFolder, i==hilitFolder?hlTextColor:textColor, fontSize, "folder%i", i);
 			}
 
 			// TODO don't try to draw the text at index i if it doesn't exist (if nb is so low that lists don't fill the screen)
@@ -282,6 +254,10 @@ int main(int argc, char** argv)
 	free(listnames);
 
 	// TODO kill playback
+	run = false;
+	svcSignalEvent(event1); // exit
+	svcSignalEvent(event2); // stop waiting
+	if (t2 != NULL) threadJoin(t2, 1000000);
 
 	sftd_free_font(font);
 

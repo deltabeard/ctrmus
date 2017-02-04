@@ -94,6 +94,7 @@ int playFile(const char* file)
 		svcWaitSynchronization(event2, U64_MAX);
 		svcClearEvent(event2);
 		*/
+		if (!svcWaitSynchronization(event1, 1)) break;
 
 		u32 kDown;
 
@@ -101,10 +102,6 @@ int playFile(const char* file)
 		 * Static only for the purposes of the printf debug at the bottom.
 		 */
 		static size_t read = 0;
-
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
 
 		hidScanInput();
 		kDown = hidKeysDown();

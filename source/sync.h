@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __SYNC_H__
+#define __SYNC_H__
 
 Handle event1;
 Handle event2;
