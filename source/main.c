@@ -120,6 +120,7 @@ int main(int argc, char** argv)
 	// UNCOMMENT TO GET SOUND IN BACKGROUND
 	//Thread t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
 
+/*
 	// WORKING VERSION
 	int nbDirs;
 	int nbFiles;
@@ -130,7 +131,7 @@ int main(int argc, char** argv)
 	obtainFolders(dirs, files, SORT_NAME_AZ);
 	foldernames = files;
 	nbFolderNames = nbFiles;
-
+*/
 /*
 	// NON WORKING VERSION
 	int nbDirs, nbFiles;
@@ -322,9 +323,6 @@ static int obtainFoldersSizes(int *nbDirs, int *nbFiles) {
 			num_files++;
 		}
 	}
-	if(closedir(dp) != 0)
-	goto err;
-
 	ret = 0;
 	*nbDirs = num_dirs;
 	*nbFiles = num_files;
@@ -362,13 +360,10 @@ static int obtainFolders(char** dirs, char** files, enum sorting_algorithms sort
 		}
 	}
 
-	if(closedir(dp) != 0)
-		goto err;
-
 	if(sort == SORT_NAME_AZ)
 	{
-		qsort(dirs, num_dirs, sizeof(char*), sortName);
-		qsort(files, num_files, sizeof(char*), sortName);
+		qsort(&dirs, num_dirs, sizeof(char*), sortName);
+		qsort(&files, num_files, sizeof(char*), sortName);
 	}
 	ret = 0;
 
