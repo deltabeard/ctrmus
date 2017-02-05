@@ -22,12 +22,12 @@
 #include "sync.h"
 #include "playback.h"
 
-#define STACKSIZE (16 * 1024)
+#define STACKSIZE	(16 * 1024)
+#define fontSize	15
 
 bool debug = false;
 
 sftd_font* font;
-int fontSize = 15;
 
 // UI to PLAYER
 bool run = true;
@@ -83,7 +83,7 @@ void updateList(
 
 void f_player(void* arg) {
 	while(run) {
-		playFile("sdmc:/Music/03 - Rosalina.mp3");
+		playFile("Haddaway_-_What_Is_Love.flac");
 	}
 }
 
@@ -101,17 +101,21 @@ int main(int argc, char** argv)
 	sdmcInit();
 
 	chdir(DEFAULT_DIR);
-	chdir("Music");
+	//chdir("MUSIC");
 
 	sf2d_set_clear_color(RGBA8(255,106,0, 255));
 	sf2d_set_vblank_wait(0);
 	font = sftd_load_font_file("romfs:/FreeSerif.ttf");
 
 	aptSetSleepAllowed(false);
-	svcCreateEvent(&event2, 0);
+	svcCreateEvent(&event2, RESET_ONESHOT);
 
 	Thread t2 = NULL;
-	if (!debug) t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, -2, true);
+	if(debug)
+	{
+		APT_SetAppCpuTimeLimit(50);
+		t2 = threadCreate(f_player, NULL, STACKSIZE, 0x18, 1, true);
+	}
 
 	// TODO: put files and folders together
 	obtainDir(&dirlist, &dirs, &filelist, &files, sort);
@@ -149,22 +153,6 @@ int main(int argc, char** argv)
 	oldTouchPad.py = 0;
 	orgTouchPad = oldTouchPad;
 
-	float yFolder = -100; // will go through a minmax, don't worry
-	float vyFolder = 0;
-
-	float yList = -100; // will go through a minmax, don't worry
-	float vyList = 0;
-
-	float inertia = 10;
-
-	int cellSize = fontSize*2;
-
-	int hilitFolder = -1;
-	int hilitList = -1;
-
-	float paneBorder = 160.0f;
-	float paneBorderGoal = 160.0f;
-
 	// may be loaded from a config file or something
 	u32 bgColor = RGBA8(0,0,0,255);
 	u32 lineColor = RGBA8(255,106,0,255);
@@ -173,10 +161,30 @@ int main(int argc, char** argv)
 
 	int scheduleCount = 0;
 	while (aptMainLoop()) {
-		hidScanInput();
-		if (hidKeysDown() & KEY_START) break;
+		static float yFolder = -100; // will go through a minmax, don't worry
+		static float vyFolder = 0;
 
-		if (scheduleCount++%4==0) svcSignalEvent(event2);
+		static float yList = -100; // will go through a minmax, don't worry
+		static float vyList = 0;
+
+		static float inertia = 10;
+
+		static int cellSize = fontSize * 2;
+
+		static int hilitFolder = -1;
+		static int hilitList = -1;
+
+		static float paneBorder = 160.0f;
+		static float paneBorderGoal = 160.0f;
+
+		hidScanInput();
+
+		/* Exit ctrmus */
+		if(hidKeysDown() & KEY_START)
+			break;
+
+		if(scheduleCount++%4==0)
+			svcSignalEvent(event2);
 
 		// scroll using touchpad
 		touchPosition touchPad;
@@ -262,7 +270,8 @@ int main(int argc, char** argv)
 	run = false;
 	svcSignalEvent(event1); // exit
 	svcSignalEvent(event2); // stop waiting
-	if (t2 != NULL) threadJoin(t2, 1000000);
+	if(t2 != NULL)
+		threadJoin(t2, 1000000);
 
 	sftd_free_font(font);
 

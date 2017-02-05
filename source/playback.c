@@ -94,7 +94,7 @@ int playFile(const char* file)
 		svcWaitSynchronization(event2, U64_MAX);
 		svcClearEvent(event2);
 		*/
-		if (!svcWaitSynchronization(event1, 1)) break;
+		//if (!svcWaitSynchronization(event1, 1)) break;
 
 		u32 kDown;
 
