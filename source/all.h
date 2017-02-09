@@ -11,6 +11,9 @@
 	do { fprintf(stderr, "\nError %d:%s(): %s %s\n", __LINE__, __func__, \
 			err, strerror(errno)); } while (0)
 
+#define delete(ptr) \
+	free(ptr); ptr = NULL
+
 struct decoder_fn
 {
 	int (* init)(const char* file);
@@ -19,4 +22,13 @@ struct decoder_fn
 	int buffSize;
 	uint64_t (* decode)(void*);
 	void (* exit)(void);
+};
+
+/* Controls playback status */
+struct playback_t
+{
+	bool stop;
+	bool pause;
+	char* file;
+	int err;
 };

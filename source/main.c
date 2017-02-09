@@ -26,6 +26,8 @@ int main(int argc, char **argv)
 	int				fileMax;
 	int				fileNum = 0;
 	int				from = 0;
+	static Thread	playbackThread = NULL;
+	struct playback_t playbackInfo;
 
 	gfxInitDefault();
 	sdmcInit();
@@ -66,6 +68,7 @@ int main(int argc, char **argv)
 		kDown = hidKeysDown();
 		kHeld = hidKeysHeld();
 
+		/* Exit ctrmus */
 		if(kDown & KEY_START)
 			break;
 
@@ -76,6 +79,18 @@ int main(int argc, char **argv)
 #endif
 		if(kDown)
 			mill = osGetTime();
+
+		if((kHeld & KEY_L) && (kDown & KEY_R))
+		{
+			printf("Stopping? %p\n", &playbackInfo);
+			playbackInfo.stop = true;
+		}
+
+		if(kDown & KEY_X)
+		{
+			playbackInfo.pause = !playbackInfo.pause;
+			printf("Pausing?");
+		}
 
 		if((kDown & KEY_UP ||
 					((kHeld & KEY_UP) && (osGetTime() - mill > 500))) &&
@@ -110,7 +125,7 @@ int main(int argc, char **argv)
 		 * is selected.
 		 */
 		if((kDown & KEY_B) ||
-				((kDown & (KEY_A | KEY_R)) && (from == 0 && fileNum == 0)))
+				((kDown & KEY_A) && (from == 0 && fileNum == 0)))
 		{
 			if(chdir("..") != 0)
 				err_print("chdir");
@@ -125,7 +140,7 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		if(kDown & (KEY_A | KEY_R))
+		if(kDown & KEY_A)
 		{
 			int				audioFileNum = 0;
 			DIR				*dp;
@@ -160,7 +175,7 @@ int main(int argc, char **argv)
 				}
 
 				consoleSelect(&topScreen);
-				playFile(ep->d_name);
+				changeFile(ep->d_name, &playbackThread, &playbackInfo);
 				consoleSelect(&bottomScreen);
 
 				if(closedir(dp) != 0)
@@ -178,6 +193,10 @@ int main(int argc, char **argv)
 
 out:
 	puts("Exiting...");
+	/* TODO: Stop all threads */
+	playbackInfo.stop = true;
+	threadJoin(playbackThread, 5 * 1000 * 1000);
+	threadFree(playbackThread);
 
 	gfxExit();
 	sdmcExit();
@@ -198,6 +217,40 @@ err:
 	}
 
 	goto out;
+}
+
+static int changeFile(const char* ep_file, Thread* playbackThread, struct playback_t* playbackInfoIn)
+{
+	s32 prio;
+	Thread thread = *playbackThread;
+	struct playback_t playbackInfo = *playbackInfoIn;
+
+	printf("struct: %p, %p\n", playbackInfoIn, &playbackInfo);
+	/* If music is playing, stop it */
+	if(thread != NULL)
+	{
+		/* Tell the thread to stop playback before we join it */
+		playbackInfo.stop = true;
+		puts("Stopping");
+
+		/* Wait 5 seconds for playback to stop */
+		threadJoin(thread, 5 * 1000 * 1000);
+		threadFree(thread);
+
+		/* free allocated file string */
+		delete(playbackInfo.file);
+	}
+
+	memset(&playbackInfo, 0, sizeof(playbackInfo));
+	playbackInfo.file = strdup(ep_file);
+	printf("file: %s\n", ep_file);
+	printf("file: %s\n", playbackInfo.file);
+
+	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+	thread = threadCreate(playFile, &playbackInfo, 32 * 1024, prio - 1,
+			-2, false);
+
+	return 0;
 }
 
 /**

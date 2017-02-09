@@ -7,7 +7,7 @@ enum file_types {
 	FILE_TYPE_MP3
 };
 
-int playFile(const char* file);
+void playFile(void* playbackInfoIn);
 
 /**
  * Obtains file type.

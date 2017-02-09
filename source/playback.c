@@ -9,17 +9,21 @@
 #include "playback.h"
 #include "wav.h"
 
-int playFile(const char* file)
+void playFile(void* playbackInfoIn)
 {
 	struct decoder_fn decoder;
+	struct playback_t* playbackInfo = playbackInfoIn;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
 	ndspWaveBuf		waveBuf[2];
 	bool			playing = true;
 	bool			lastbuf = false;
-	int				ret;
+	int				ret = -1;
+	const char*		file = playbackInfo->file;
 
-	switch(getFileType(file))
+	printf("info: %p,%p\n", playbackInfo, playbackInfoIn);
+
+	switch(errno = getFileType(file))
 	{
 		case FILE_TYPE_WAV:
 			setWav(&decoder);
@@ -38,8 +42,8 @@ int playFile(const char* file)
 			break;
 
 		default:
-			printf("Unsupported File type.\n");
-			return 0;
+			playbackInfo->err = errno;
+			return;
 	}
 
 	if(R_FAILED(ndspInit()))
@@ -89,8 +93,6 @@ int playFile(const char* file)
 
 	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
 	{
-		u32 kDown;
-
 		/* Number of bytes read from file.
 		 * Static only for the purposes of the printf debug at the bottom.
 		 */
@@ -100,17 +102,20 @@ int playFile(const char* file)
 		gfxFlushBuffers();
 		gspWaitForVBlank();
 
-		hidScanInput();
-		kDown = hidKeysDown();
+		//svcSleepThread(100 * 1000);
 
-		if(kDown & KEY_B)
-			break;
-
-		if(kDown & (KEY_A | KEY_R))
+		if(playbackInfo->stop == true)
 		{
-			playing = !playing;
-			ndspChnSetPaused(CHANNEL, !ndspChnIsPaused(CHANNEL));
-			printf("\33[2K\r%s", playing == false ? "Paused" : "");
+			puts("Stop recieved");
+			break;
+		}
+
+		if(playbackInfo->pause != ndspChnIsPaused(CHANNEL))
+		{
+			puts("Toggle");
+			/* TODO: Change playing to paused */
+			playing = !playbackInfo->pause;
+			ndspChnSetPaused(CHANNEL, playbackInfo->pause);
 		}
 
 		if(playing == false || lastbuf == true)
@@ -157,7 +162,7 @@ out:
 	ndspExit();
 	linearFree(buffer1);
 	linearFree(buffer2);
-	return 0;
+	return;
 }
 
 /**
@@ -172,18 +177,14 @@ int getFileType(const char *file)
 	int fileSig = 0;
 	enum file_types file_type = FILE_TYPE_ERROR;
 
+	/* Failure opening file */
 	if(ftest == NULL)
-	{
-		err_print("Opening file failed.");
-		printf("file: %s\n", file);
-		return -1;
-	}
+		return -errno;
 
 	if(fread(&fileSig, 4, 1, ftest) == 0)
 	{
-		err_print("Unable to read file.");
 		fclose(ftest);
-		return -1;
+		return -errno;
 	}
 
 	switch(fileSig)
@@ -191,43 +192,32 @@ int getFileType(const char *file)
 		// "RIFF"
 		case 0x46464952:
 			if(fseek(ftest, 4, SEEK_CUR) != 0)
-			{
-				err_print("Unable to seek.");
-				break;
-			}
+				return -errno;
 
 			// "WAVE"
 			// Check required as AVI file format also uses "RIFF".
 			if(fread(&fileSig, 4, 1, ftest) == 0)
-			{
-				err_print("Unable to read potential WAV file.");
-				break;
-			}
+				return -errno;
 
 			if(fileSig != 0x45564157)
 				break;
 
 			file_type = FILE_TYPE_WAV;
-			printf("File type is WAV.");
 			break;
 
 		// "fLaC"
 		case 0x43614c66:
 			file_type = FILE_TYPE_FLAC;
-			printf("File type is FLAC.");
 			break;
 
 		// "OggS"
 		case 0x5367674f:
 			if(isOpus(file) == 0)
-			{
-				printf("\nFile type is Opus.");
 				file_type = FILE_TYPE_OPUS;
-			}
 			else
 			{
 				file_type = FILE_TYPE_OGG;
-				printf("\nUnsupported audio in OGG container.");
+				return -ENOTSUP;
 			}
 
 			break;
@@ -241,12 +231,13 @@ int getFileType(const char *file)
 					(fileSig << 16) == 0xFAFF0000 ||
 					(fileSig << 8) == 0x33444900)
 			{
-				puts("File type is MP3.");
 				file_type = FILE_TYPE_MP3;
 				break;
 			}
 
-			printf("Unknown magic number: %#010x\n.", fileSig);
+			/* TODO: Add this again at some point */
+			//printf("Unknown magic number: %#010x\n.", fileSig);
+			return -ENOTSUP;
 	}
 
 	fclose(ftest);
