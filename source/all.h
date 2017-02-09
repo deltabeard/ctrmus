@@ -23,12 +23,3 @@ struct decoder_fn
 	uint64_t (* decode)(void*);
 	void (* exit)(void);
 };
-
-/* Controls playback status */
-struct playback_t
-{
-	bool stop;
-	bool pause;
-	char* file;
-	int err;
-};

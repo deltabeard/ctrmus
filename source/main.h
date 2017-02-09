@@ -13,7 +13,7 @@
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		27
 
-static int changeFile(const char* ep_file, Thread* thread, struct playback_t* playbackInfo);
+static int changeFile(const char* ep_file);
 
 /**
  * Get number of files in current working folder

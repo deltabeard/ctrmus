@@ -9,20 +9,22 @@
 #include "playback.h"
 #include "wav.h"
 
-void playFile(void* playbackInfoIn)
+static bool stop = false;
+
+void playFile(void* fileIn)
 {
 	struct decoder_fn decoder;
-	struct playback_t* playbackInfo = playbackInfoIn;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
 	ndspWaveBuf		waveBuf[2];
-	bool			playing = true;
 	bool			lastbuf = false;
 	int				ret = -1;
-	const char*		file = playbackInfo->file;
+	const char*		file = fileIn;
 
-	printf("info: %p,%p\n", playbackInfo, playbackInfoIn);
+	/* Reset previous stop command */
+	stop = false;
 
+	printf("Here %d\n", __LINE__);
 	switch(errno = getFileType(file))
 	{
 		case FILE_TYPE_WAV:
@@ -42,10 +44,10 @@ void playFile(void* playbackInfoIn)
 			break;
 
 		default:
-			playbackInfo->err = errno;
 			return;
 	}
 
+	printf("Here %d\n", __LINE__);
 	if(R_FAILED(ndspInit()))
 	{
 		printf("Initialising ndsp failed.");
@@ -61,6 +63,7 @@ void playFile(void* playbackInfoIn)
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 
+	printf("Here %d\n", __LINE__);
 #ifdef DEBUG
 	printf("\nRate: %lu\tChan: %d\n", (*decoder.rate)(), (*decoder.channels)());
 #endif
@@ -83,15 +86,14 @@ void playFile(void* playbackInfoIn)
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
-	printf("Playing %s\n", file);
-
+	printf("Here %d\n", __LINE__);
 	/**
 	 * There may be a chance that the music has not started by the time we get
 	 * to the while loop. So we ensure that music has started here.
 	 */
 	while(ndspChnIsPlaying(CHANNEL) == false);
 
-	while(playing == false || ndspChnIsPlaying(CHANNEL) == true)
+	while(stop == false)
 	{
 		/* Number of bytes read from file.
 		 * Static only for the purposes of the printf debug at the bottom.
@@ -102,23 +104,9 @@ void playFile(void* playbackInfoIn)
 		gfxFlushBuffers();
 		gspWaitForVBlank();
 
-		//svcSleepThread(100 * 1000);
+		svcSleepThread(100 * 1000);
 
-		if(playbackInfo->stop == true)
-		{
-			puts("Stop recieved");
-			break;
-		}
-
-		if(playbackInfo->pause != ndspChnIsPaused(CHANNEL))
-		{
-			puts("Toggle");
-			/* TODO: Change playing to paused */
-			playing = !playbackInfo->pause;
-			ndspChnSetPaused(CHANNEL, playbackInfo->pause);
-		}
-
-		if(playing == false || lastbuf == true)
+		if(ndspChnIsPaused(CHANNEL) == true || lastbuf == true)
 			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
@@ -155,6 +143,7 @@ void playFile(void* playbackInfoIn)
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
 
+	printf("Here %d\n", __LINE__);
 out:
 	printf("\nStopping playback.\n");
 	(*decoder.exit)();
@@ -162,7 +151,18 @@ out:
 	ndspExit();
 	linearFree(buffer1);
 	linearFree(buffer2);
+	threadExit(0);
 	return;
+}
+
+void togglePlayback(void)
+{
+	ndspChnSetPaused(CHANNEL, !ndspChnIsPaused(CHANNEL));
+}
+
+void stopPlayback(void)
+{
+	stop = true;
 }
 
 /**
@@ -241,5 +241,6 @@ int getFileType(const char *file)
 	}
 
 	fclose(ftest);
+	printf("Here %d\n", __LINE__);
 	return file_type;
 }

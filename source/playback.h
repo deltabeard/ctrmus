@@ -7,7 +7,11 @@ enum file_types {
 	FILE_TYPE_MP3
 };
 
-void playFile(void* playbackInfoIn);
+void playFile(void* fileIn);
+
+void togglePlayback(void);
+
+void stopPlayback(void);
 
 /**
  * Obtains file type.
