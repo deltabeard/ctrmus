@@ -223,7 +223,10 @@ static int changeFile(const char* ep_file)
 	static Thread thread = NULL;
 	static char* file = NULL;
 
-	/* If music is playing, stop it */
+	/**
+	 * If music is playing, stop it. Only one playback thread should be playing
+	 * at any time.
+	 */
 	if(thread != NULL)
 	{
 		/* Tell the thread to stop playback before we join it */
@@ -246,7 +249,7 @@ static int changeFile(const char* ep_file)
 
 	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	thread = threadCreate(playFile, file, 32 * 1024, prio - 1,
-			-2, true);
+			-2, false);
 
 	return 0;
 }

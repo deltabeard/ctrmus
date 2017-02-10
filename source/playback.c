@@ -9,8 +9,11 @@
 #include "playback.h"
 #include "wav.h"
 
-static bool stop = false;
+volatile bool stop = false;
 
+/**
+ * Should only be called from a new thread only.
+ */
 void playFile(void* fileIn)
 {
 	struct decoder_fn decoder;
@@ -44,6 +47,7 @@ void playFile(void* fileIn)
 			break;
 
 		default:
+			threadExit(0);
 			return;
 	}
 
@@ -95,23 +99,23 @@ void playFile(void* fileIn)
 
 	while(stop == false)
 	{
-		/* Number of bytes read from file.
-		 * Static only for the purposes of the printf debug at the bottom.
-		 */
-		static size_t read = 0;
-
 		gfxSwapBuffers();
 		gfxFlushBuffers();
 		gspWaitForVBlank();
 
 		svcSleepThread(100 * 1000);
 
+		/* When the last buffer has finished playing, break. */
+		if(lastbuf == true && waveBuf[0].status == NDSP_WBUF_DONE &&
+				waveBuf[1].status == NDSP_WBUF_DONE)
+			break;
+
 		if(ndspChnIsPaused(CHANNEL) == true || lastbuf == true)
 			continue;
 
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
-			read = (*decoder.decode)(&buffer1[0]);
+			size_t read = (*decoder.decode)(&buffer1[0]);
 
 			if(read == 0)
 			{
@@ -126,7 +130,7 @@ void playFile(void* fileIn)
 
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
-			read = (*decoder.decode)(&buffer2[0]);
+			size_t read = (*decoder.decode)(&buffer2[0]);
 
 			if(read == 0)
 			{
