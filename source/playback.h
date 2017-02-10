@@ -19,6 +19,8 @@ bool togglePlayback(void);
 
 void stopPlayback(void);
 
+bool isPlaying(void);
+
 /**
  * Obtains file type.
  *

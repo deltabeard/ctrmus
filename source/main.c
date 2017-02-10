@@ -83,8 +83,15 @@ int main(int argc, char **argv)
 			/* Pause/Play */
 			if(kDown & (KEY_R | KEY_UP))
 			{
+				if(isPlaying() == false)
+					continue;
+
 				consoleSelect(&topScreen);
-				printf("\r%s", togglePlayback() == true ? "Paused" : "");
+				if(togglePlayback() == true)
+					puts("Paused");
+				else
+					puts("Playing");
+
 				consoleSelect(&bottomScreen);
 				continue;
 			}
@@ -207,7 +214,6 @@ int main(int argc, char **argv)
 
 out:
 	puts("Exiting...");
-	/* TODO: Stop all threads */
 	stopPlayback();
 	changeFile(NULL);
 

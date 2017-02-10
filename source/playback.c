@@ -167,6 +167,11 @@ void stopPlayback(void)
 	stop = true;
 }
 
+bool isPlaying(void)
+{
+	return !stop;
+}
+
 /**
  * Obtains file type.
  *
