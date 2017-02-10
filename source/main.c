@@ -78,12 +78,27 @@ int main(int argc, char **argv)
 		if(kDown)
 			mill = osGetTime();
 
-		if((kHeld & KEY_L) && (kDown & (KEY_R | KEY_UP)))
+		if(kHeld & KEY_L)
 		{
-			togglePlayback();
-			continue;
+			/* Pause/Play */
+			if(kDown & (KEY_R | KEY_UP))
+			{
+				consoleSelect(&topScreen);
+				printf("\r%s", togglePlayback() == true ? "Paused" : "");
+				consoleSelect(&bottomScreen);
+				continue;
+			}
+			/* Show controls */
+			else if(kDown & KEY_LEFT)
+			{
+				consoleSelect(&topScreen);
+				showControls();
+				consoleSelect(&bottomScreen);
+				continue;
+			}
 		}
 
+		/* Stop */
 		if(kDown & KEY_X)
 		{
 			stopPlayback();
@@ -217,11 +232,27 @@ err:
 	goto out;
 }
 
+static void showControls(void)
+{
+	printf("Button mappings:\n"
+			"Pause: L+R or L+Up\n"
+			"Stop: X\n"
+			"A: Open File\n"
+			"B: Go up folder\n"
+			"Start: Exit\n");
+}
+
 static int changeFile(const char* ep_file)
 {
 	s32 prio;
 	static Thread thread = NULL;
 	static char* file = NULL;
+
+	if(ep_file != NULL && getFileType(ep_file) < 0)
+	{
+		puts("Unsupported file.");
+		return -1;
+	}
 
 	/**
 	 * If music is playing, stop it. Only one playback thread should be playing
@@ -231,7 +262,6 @@ static int changeFile(const char* ep_file)
 	{
 		/* Tell the thread to stop playback before we join it */
 		stopPlayback();
-		puts("Stopping");
 
 		threadJoin(thread, U64_MAX);
 		threadFree(thread);

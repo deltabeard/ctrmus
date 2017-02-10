@@ -13,6 +13,8 @@
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		27
 
+static void showControls(void);
+
 static int changeFile(const char* ep_file);
 
 /**

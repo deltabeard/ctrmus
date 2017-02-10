@@ -1,4 +1,5 @@
-enum file_types {
+enum file_types
+{
 	FILE_TYPE_ERROR = -1,
 	FILE_TYPE_WAV,
 	FILE_TYPE_FLAC,
@@ -9,7 +10,12 @@ enum file_types {
 
 void playFile(void* fileIn);
 
-void togglePlayback(void);
+/**
+ * Pause or play current file.
+ *
+ * \return	True if paused.
+ */
+bool togglePlayback(void);
 
 void stopPlayback(void);
 

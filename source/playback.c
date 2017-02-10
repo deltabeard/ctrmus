@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "all.h"
+#include "error.h"
 #include "flac.h"
 #include "mp3.h"
 #include "opus.h"
@@ -27,8 +28,7 @@ void playFile(void* fileIn)
 	/* Reset previous stop command */
 	stop = false;
 
-	printf("Here %d\n", __LINE__);
-	switch(errno = getFileType(file))
+	switch(getFileType(file))
 	{
 		case FILE_TYPE_WAV:
 			setWav(&decoder);
@@ -51,26 +51,20 @@ void playFile(void* fileIn)
 			return;
 	}
 
-	printf("Here %d\n", __LINE__);
 	if(R_FAILED(ndspInit()))
 	{
-		printf("Initialising ndsp failed.");
+		errno = NDSP_INIT_FAIL;
 		goto out;
 	}
 
 	if((ret = (*decoder.init)(file)) != 0)
 	{
-		printf("Error initialising decoder: %d\n", ret);
+		errno = DECODER_INIT_FAIL;
 		goto out;
 	}
 
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
-
-	printf("Here %d\n", __LINE__);
-#ifdef DEBUG
-	printf("\nRate: %lu\tChan: %d\n", (*decoder.rate)(), (*decoder.channels)());
-#endif
 
 	ndspChnReset(CHANNEL);
 	ndspChnWaveBufClear(CHANNEL);
@@ -90,7 +84,6 @@ void playFile(void* fileIn)
 	waveBuf[1].data_vaddr = &buffer2[0];
 	ndspChnWaveBufAdd(CHANNEL, &waveBuf[1]);
 
-	printf("Here %d\n", __LINE__);
 	/**
 	 * There may be a chance that the music has not started by the time we get
 	 * to the while loop. So we ensure that music has started here.
@@ -147,9 +140,7 @@ void playFile(void* fileIn)
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
 
-	printf("Here %d\n", __LINE__);
 out:
-	printf("\nStopping playback.\n");
 	(*decoder.exit)();
 	ndspChnWaveBufClear(CHANNEL);
 	ndspExit();
@@ -159,9 +150,16 @@ out:
 	return;
 }
 
-void togglePlayback(void)
+/**
+ * Pause or play current file.
+ *
+ * \return	True if paused.
+ */
+bool togglePlayback(void)
 {
-	ndspChnSetPaused(CHANNEL, !ndspChnIsPaused(CHANNEL));
+	bool paused = ndspChnIsPaused(CHANNEL);
+	ndspChnSetPaused(CHANNEL, !paused);
+	return !paused;
 }
 
 void stopPlayback(void)
@@ -173,7 +171,7 @@ void stopPlayback(void)
  * Obtains file type.
  *
  * \param	file	File location.
- * \return			File type, else negative.
+ * \return			File type, else negative and errno set.
  */
 int getFileType(const char *file)
 {
@@ -183,25 +181,22 @@ int getFileType(const char *file)
 
 	/* Failure opening file */
 	if(ftest == NULL)
-		return -errno;
+		return -1;
 
 	if(fread(&fileSig, 4, 1, ftest) == 0)
-	{
-		fclose(ftest);
-		return -errno;
-	}
+		goto err;
 
 	switch(fileSig)
 	{
 		// "RIFF"
 		case 0x46464952:
 			if(fseek(ftest, 4, SEEK_CUR) != 0)
-				return -errno;
+				break;
 
 			// "WAVE"
 			// Check required as AVI file format also uses "RIFF".
 			if(fread(&fileSig, 4, 1, ftest) == 0)
-				return -errno;
+				break;
 
 			if(fileSig != 0x45564157)
 				break;
@@ -220,8 +215,8 @@ int getFileType(const char *file)
 				file_type = FILE_TYPE_OPUS;
 			else
 			{
-				file_type = FILE_TYPE_OGG;
-				return -ENOTSUP;
+				//file_type = FILE_TYPE_OGG;
+				errno = FILE_NOT_SUPPORTED;
 			}
 
 			break;
@@ -241,10 +236,11 @@ int getFileType(const char *file)
 
 			/* TODO: Add this again at some point */
 			//printf("Unknown magic number: %#010x\n.", fileSig);
-			return -ENOTSUP;
+			errno = FILE_NOT_SUPPORTED;
+			break;
 	}
 
+err:
 	fclose(ftest);
-	printf("Here %d\n", __LINE__);
 	return file_type;
 }
