@@ -2,11 +2,6 @@
 <p align="center">A music player for the Nintendo 3DS</p>
 <p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="http://i.imgur.com/ZEzeU4j.png">QR code</a>, or via titledb</p>
 
-#### Note
-Due to limitations in [ctrulib](https://github.com/smealum/ctrulib/issues/328), only ASCII characters are displayed correctly. Other characters will appear garbled, but functionality is not affected.
-
-[Ctrulib](https://github.com/smealum/ctrulib/issues/328)の制約でアスキー文字のみ正しく表示されます。それ以外の文字エンコードの場合文字化けはしますが、機能自体に影響はありません。
-
 ### Features
 * Plays PCM WAV, AIFF, FLAC, Opus, MP3 files.
 * Pause and play support.
@@ -38,3 +33,9 @@ Have a look at [CONTRIBUTING.md](https://github.com/deltabeard/ctrmus/blob/maste
 * Metadata support.
 * Gain support.
 
+#### Notes
+Due to limitations in [ctrulib](https://github.com/smealum/ctrulib/issues/328), only ASCII characters are displayed correctly. Other characters will appear garbled, but functionality is not affected.
+
+[Ctrulib](https://github.com/smealum/ctrulib/issues/328)の制約でアスキー文字のみ正しく表示されます。それ以外の文字エンコードの場合文字化けはしますが、機能自体に影響はありません。
+
+Banner music uses a modified version of ["Rad Adventure" by Scott Holmes](http://freemusicarchive.org/music/Scott_Holmes/).
