@@ -16,8 +16,11 @@
 #include <unistd.h>
 
 #include "all.h"
+#include "error.h"
 #include "main.h"
 #include "playback.h"
+
+volatile bool runThreads = true;
 
 int main(int argc, char **argv)
 {
@@ -26,6 +29,12 @@ int main(int argc, char **argv)
 	int				fileMax;
 	int				fileNum = 0;
 	int				from = 0;
+	Thread			watchdogThread;
+	Handle*			playbackFailEvent = malloc(sizeof(Handle));
+	struct watchdogInfo*	watchdogInfoIn;
+	struct errInfo_t*		errInfo;
+	static volatile int		error;
+	static volatile char*	errorstr = NULL;
 
 	gfxInitDefault();
 	sdmcInit();
@@ -33,6 +42,17 @@ int main(int argc, char **argv)
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 	consoleSelect(&bottomScreen);
 
+	svcCreateEvent(playbackFailEvent, RESET_ONESHOT);
+	watchdogInfoIn = calloc(1, sizeof(struct watchdogInfo));
+	errInfo = calloc(1, sizeof(struct errInfo_t));
+	errInfo->error = &error;
+	errInfo->failEvent = playbackFailEvent;
+	errInfo->errstr = errorstr;
+	watchdogInfoIn->screen = &topScreen;
+	watchdogInfoIn->errInfo = errInfo;
+	watchdogThread = threadCreate(playbackWatchdog, watchdogInfoIn, 4 * 1024, 0x20, -2, true);
+
+	printf("%p", playbackFailEvent);
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
 	if(listDir(from, MAX_LIST, 0) < 0)
@@ -66,6 +86,8 @@ int main(int argc, char **argv)
 		kDown = hidKeysDown();
 		kHeld = hidKeysHeld();
 
+		consoleSelect(&bottomScreen);
+
 		/* Exit ctrmus */
 		if(kDown & KEY_START)
 			break;
@@ -92,25 +114,26 @@ int main(int argc, char **argv)
 				else
 					puts("Playing");
 
-				consoleSelect(&bottomScreen);
 				continue;
 			}
+
 			/* Show controls */
-			else if(kDown & KEY_LEFT)
+			if(kDown & KEY_LEFT)
 			{
 				consoleSelect(&topScreen);
 				showControls();
-				consoleSelect(&bottomScreen);
 				continue;
 			}
-		}
 
-		/* Stop */
-		if(kDown & KEY_X)
-		{
-			stopPlayback();
-			changeFile(NULL);
-			continue;
+			/* Stop */
+			if(kDown & KEY_B)
+			{
+				stopPlayback();
+				changeFile(NULL, NULL, NULL);
+				consoleSelect(&topScreen);
+				puts("Stopped");
+				continue;
+			}
 		}
 
 		if((kDown & KEY_UP ||
@@ -196,7 +219,7 @@ int main(int argc, char **argv)
 				}
 
 				consoleSelect(&topScreen);
-				changeFile(ep->d_name);
+				changeFile(ep->d_name, &error, playbackFailEvent);
 				consoleSelect(&bottomScreen);
 
 				if(closedir(dp) != 0)
@@ -214,8 +237,9 @@ int main(int argc, char **argv)
 
 out:
 	puts("Exiting...");
+	runThreads = false;
 	stopPlayback();
-	changeFile(NULL);
+	changeFile(NULL, NULL, NULL);
 
 	gfxExit();
 	sdmcExit();
@@ -242,17 +266,46 @@ static void showControls(void)
 {
 	printf("Button mappings:\n"
 			"Pause: L+R or L+Up\n"
-			"Stop: X\n"
+			"Stop: L+B\n"
 			"A: Open File\n"
 			"B: Go up folder\n"
 			"Start: Exit\n");
 }
 
-static int changeFile(const char* ep_file)
+void playbackWatchdog(void* infoIn)
+{
+	struct watchdogInfo* info = infoIn;
+
+	while(runThreads)
+	{
+		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
+		svcClearEvent(*info->errInfo->failEvent);
+		consoleSelect(info->screen);
+		printf("Here %s:%d err:%d\n", __func__, __LINE__, *info->errInfo->error);
+#if 0
+		if(*info->error != 0)
+		{
+			printf("An error occurred: %s", ctrmus_strerror(*info->error));
+			if(info->str != NULL)
+				printf(" %s", info->str);
+
+			printf("\n");
+			info->str = NULL;
+		}
+#endif
+	}
+
+	return;
+}
+
+static int changeFile(const char* ep_file, volatile int* error, Handle* failEvent)
 {
 	s32 prio;
 	static Thread thread = NULL;
-	static char* file = NULL;
+	static struct playbackInfo* info = NULL;
+	
+	if(info == NULL)
+		info = calloc(1, sizeof(struct playbackInfo));
 
 	if(ep_file != NULL && getFileType(ep_file) < 0)
 	{
@@ -274,18 +327,19 @@ static int changeFile(const char* ep_file)
 		thread = NULL;
 
 		/* free allocated file string */
-		delete(file);
+		delete(info->file);
 	}
 
 	if(ep_file == NULL)
 		return 0;
 
-	file = strdup(ep_file);
-	printf("Playing: %s\n", file);
+	info->file = strdup(ep_file);
+	info->errInfo->error = error;
+	info->errInfo->failEvent = failEvent;
+	printf("Playing: %s\n", info->file);
 
 	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
-	thread = threadCreate(playFile, file, 32 * 1024, prio - 1,
-			-2, false);
+	thread = threadCreate(playFile, info, 32 * 1024, prio - 1, -2, false);
 
 	return 0;
 }

@@ -13,9 +13,17 @@
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		27
 
+struct watchdogInfo
+{
+	PrintConsole*		screen;
+	struct errInfo_t*	errInfo;
+};
+
+void playbackWatchdog(void* infoIn);
+
 static void showControls(void);
 
-static int changeFile(const char* ep_file);
+static int changeFile(const char* ep_file, volatile int* error, Handle* failEvent);
 
 /**
  * Get number of files in current working folder

@@ -8,7 +8,13 @@ enum file_types
 	FILE_TYPE_MP3
 };
 
-void playFile(void* fileIn);
+struct playbackInfo
+{
+	char*				file;
+	struct errInfo_t*	errInfo;
+};
+
+void playFile(void* infoIn);
 
 /**
  * Pause or play current file.

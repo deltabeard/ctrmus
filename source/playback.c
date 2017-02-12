@@ -10,21 +10,25 @@
 #include "playback.h"
 #include "wav.h"
 
-volatile bool stop = false;
+static volatile bool stop = false;
 
 /**
  * Should only be called from a new thread only.
  */
-void playFile(void* fileIn)
+void playFile(void* infoIn)
 {
 	struct decoder_fn decoder;
+	struct playbackInfo* info = infoIn;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
 	ndspWaveBuf		waveBuf[2];
 	bool			lastbuf = false;
 	int				ret = -1;
-	const char*		file = fileIn;
+	const char*		file = info->file;
 
+	//info->str = strdup("Testing.");
+	errno = 12;
+	goto err;
 	/* Reset previous stop command */
 	stop = false;
 
@@ -47,20 +51,19 @@ void playFile(void* fileIn)
 			break;
 
 		default:
-			threadExit(0);
-			return;
+			goto err;
 	}
 
 	if(R_FAILED(ndspInit()))
 	{
 		errno = NDSP_INIT_FAIL;
-		goto out;
+		goto err;
 	}
 
 	if((ret = (*decoder.init)(file)) != 0)
 	{
 		errno = DECODER_INIT_FAIL;
-		goto out;
+		goto err;
 	}
 
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
@@ -140,14 +143,19 @@ void playFile(void* fileIn)
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
 
-out:
 	(*decoder.exit)();
+out:
 	ndspChnWaveBufClear(CHANNEL);
 	ndspExit();
 	linearFree(buffer1);
 	linearFree(buffer2);
 	threadExit(0);
 	return;
+
+err:
+	*info->errInfo->error = errno;
+	svcSignalEvent(*info->errInfo->failEvent);
+	goto out;
 }
 
 /**
