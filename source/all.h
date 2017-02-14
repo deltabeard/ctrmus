@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdio.h>
 
 /* Channel to play music on */
 #define CHANNEL	0x08

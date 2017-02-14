@@ -23,7 +23,7 @@ void playbackWatchdog(void* infoIn);
 
 static void showControls(void);
 
-static int changeFile(const char* ep_file, volatile int* error, Handle* failEvent);
+static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo);
 
 /**
  * Get number of files in current working folder

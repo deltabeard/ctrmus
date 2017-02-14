@@ -18,7 +18,7 @@ static volatile bool stop = false;
 void playFile(void* infoIn)
 {
 	struct decoder_fn decoder;
-	struct playbackInfo* info = infoIn;
+	struct playbackInfo_t* info = infoIn;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
 	ndspWaveBuf		waveBuf[2];
@@ -26,9 +26,10 @@ void playFile(void* infoIn)
 	int				ret = -1;
 	const char*		file = info->file;
 
-	//info->str = strdup("Testing.");
-	errno = 12;
-	goto err;
+
+	//info->errInfo->errstr = strdup("Testing.");
+	//errno = 1001;
+	//goto err;
 	/* Reset previous stop command */
 	stop = false;
 
@@ -154,6 +155,7 @@ out:
 
 err:
 	*info->errInfo->error = errno;
+	printf("%s:%d errno:%d %d\n", __func__, __LINE__, errno, *info->errInfo->error);
 	svcSignalEvent(*info->errInfo->failEvent);
 	goto out;
 }

@@ -8,7 +8,7 @@ enum file_types
 	FILE_TYPE_MP3
 };
 
-struct playbackInfo
+struct playbackInfo_t
 {
 	char*				file;
 	struct errInfo_t*	errInfo;

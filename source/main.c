@@ -17,8 +17,9 @@
 
 #include "all.h"
 #include "error.h"
-#include "main.h"
+// TODO: Remove order requirement.
 #include "playback.h"
+#include "main.h"
 
 volatile bool runThreads = true;
 
@@ -30,11 +31,11 @@ int main(int argc, char **argv)
 	int				fileNum = 0;
 	int				from = 0;
 	Thread			watchdogThread;
-	Handle*			playbackFailEvent = malloc(sizeof(Handle));
-	struct watchdogInfo*	watchdogInfoIn;
-	struct errInfo_t*		errInfo;
-	static volatile int		error;
-	static volatile char*	errorstr = NULL;
+	Handle			playbackFailEvent;
+	struct watchdogInfo	watchdogInfoIn;
+	struct errInfo_t	errInfo;
+	struct playbackInfo_t playbackInfo;
+	int error = 0;
 
 	gfxInitDefault();
 	sdmcInit();
@@ -42,17 +43,18 @@ int main(int argc, char **argv)
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 	consoleSelect(&bottomScreen);
 
-	svcCreateEvent(playbackFailEvent, RESET_ONESHOT);
-	watchdogInfoIn = calloc(1, sizeof(struct watchdogInfo));
-	errInfo = calloc(1, sizeof(struct errInfo_t));
-	errInfo->error = &error;
-	errInfo->failEvent = playbackFailEvent;
-	errInfo->errstr = errorstr;
-	watchdogInfoIn->screen = &topScreen;
-	watchdogInfoIn->errInfo = errInfo;
-	watchdogThread = threadCreate(playbackWatchdog, watchdogInfoIn, 4 * 1024, 0x20, -2, true);
+	svcCreateEvent(&playbackFailEvent, RESET_ONESHOT);
+	errInfo.error = &error;
+	errInfo.failEvent = &playbackFailEvent;
+	errInfo.errstr = NULL;
 
-	printf("%p", playbackFailEvent);
+	watchdogInfoIn.screen = &topScreen;
+	watchdogInfoIn.errInfo = &errInfo;
+	watchdogThread = threadCreate(playbackWatchdog, &watchdogInfoIn, 4 * 1024, 0x20, -2, true);
+
+	playbackInfo.file = NULL;
+	playbackInfo.errInfo = &errInfo;
+
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
 	if(listDir(from, MAX_LIST, 0) < 0)
@@ -129,7 +131,7 @@ int main(int argc, char **argv)
 			if(kDown & KEY_B)
 			{
 				stopPlayback();
-				changeFile(NULL, NULL, NULL);
+				changeFile(NULL, NULL);
 				consoleSelect(&topScreen);
 				puts("Stopped");
 				continue;
@@ -219,7 +221,7 @@ int main(int argc, char **argv)
 				}
 
 				consoleSelect(&topScreen);
-				changeFile(ep->d_name, &error, playbackFailEvent);
+				changeFile(ep->d_name, &playbackInfo);
 				consoleSelect(&bottomScreen);
 
 				if(closedir(dp) != 0)
@@ -239,7 +241,7 @@ out:
 	puts("Exiting...");
 	runThreads = false;
 	stopPlayback();
-	changeFile(NULL, NULL, NULL);
+	changeFile(NULL, NULL);
 
 	gfxExit();
 	sdmcExit();
@@ -278,41 +280,35 @@ void playbackWatchdog(void* infoIn)
 
 	while(runThreads)
 	{
+		printf("%s:%d\n", __func__, __LINE__);
 		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
+		printf("%s:%d\n", __func__, __LINE__);
 		svcClearEvent(*info->errInfo->failEvent);
+		printf("%s:%d\n", __func__, __LINE__);
 		consoleSelect(info->screen);
 		printf("Here %s:%d err:%d\n", __func__, __LINE__, *info->errInfo->error);
-#if 0
-		if(*info->error != 0)
+
+		if(*info->errInfo->error != 0)
 		{
-			printf("An error occurred: %s", ctrmus_strerror(*info->error));
-			if(info->str != NULL)
-				printf(" %s", info->str);
+			printf("An error occurred: %s", ctrmus_strerror(*info->errInfo->error));
+			if(info->errInfo->errstr != NULL)
+			{
+				printf(" %s", info->errInfo->errstr);
+				delete(info->errInfo->errstr);
+			}
 
 			printf("\n");
-			info->str = NULL;
 		}
-#endif
 	}
 
 	return;
 }
 
-static int changeFile(const char* ep_file, volatile int* error, Handle* failEvent)
+static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 {
 	s32 prio;
 	static Thread thread = NULL;
-	static struct playbackInfo* info = NULL;
 	
-	if(info == NULL)
-		info = calloc(1, sizeof(struct playbackInfo));
-
-	if(ep_file != NULL && getFileType(ep_file) < 0)
-	{
-		puts("Unsupported file.");
-		return -1;
-	}
-
 	/**
 	 * If music is playing, stop it. Only one playback thread should be playing
 	 * at any time.
@@ -327,19 +323,17 @@ static int changeFile(const char* ep_file, volatile int* error, Handle* failEven
 		thread = NULL;
 
 		/* free allocated file string */
-		delete(info->file);
+		delete(playbackInfo->file);
 	}
 
-	if(ep_file == NULL)
+	if(ep_file == NULL || playbackInfo == NULL)
 		return 0;
 
-	info->file = strdup(ep_file);
-	info->errInfo->error = error;
-	info->errInfo->failEvent = failEvent;
-	printf("Playing: %s\n", info->file);
+	playbackInfo->file = strdup(ep_file);
+	printf("Playing: %s\n", playbackInfo->file);
 
 	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
-	thread = threadCreate(playFile, info, 32 * 1024, prio - 1, -2, false);
+	thread = threadCreate(playFile, playbackInfo, 32 * 1024, prio - 1, -2, false);
 
 	return 0;
 }
