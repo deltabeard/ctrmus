@@ -10,8 +10,6 @@
 #ifndef ctrmus_main_h
 #define ctrmus_main_h
 
-#include "playback.h"
-
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 
@@ -24,11 +22,14 @@ struct watchdogInfo
 	struct errInfo_t*	errInfo;
 };
 
+/**
+ * Allows the playback thread to return any error messages that it may
+ * encounter.
+ *
+ * \param	infoIn	Struct containing addresses of the event, the error code,
+ *					and an optional error string.
+ */
 void playbackWatchdog(void* infoIn);
-
-static void showControls(void);
-
-static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo);
 
 /**
  * Get number of files in current working folder
@@ -37,15 +38,5 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo);
  *			errno set.
  */
 int getNumberFiles(void);
-
-/**
- * List current directory.
- *
- * \param	from	First entry in directory to list.
- * \param	max		Maximum number of entries to list. Must be > 0.
- * \param	select	File to show as selected. Must be > 0.
- * \return			Number of entries listed or negative on error.
- */
-int listDir(int from, int max, int select);
 
 #endif

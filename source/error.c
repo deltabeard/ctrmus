@@ -2,6 +2,12 @@
 #include <errno.h>
 #include <string.h>
 
+/**
+ * Return string describing error number. Extends strerror to include some
+ * custom errors used in ctrmus.
+ *
+ * \param err	Error number.
+ */
 char* ctrmus_strerror(int err)
 {
 	char* error;

@@ -13,9 +13,117 @@
 static volatile bool stop = false;
 
 /**
+ * Pause or play current file.
+ *
+ * \return	True if paused.
+ */
+bool togglePlayback(void)
+{
+	bool paused = ndspChnIsPaused(CHANNEL);
+	ndspChnSetPaused(CHANNEL, !paused);
+	return !paused;
+}
+
+/**
+ * Stops current playback. Playback thread should exit as a result.
+ */
+void stopPlayback(void)
+{
+	stop = true;
+}
+
+/**
+ * Returns whether music is playing or paused.
+ */
+bool isPlaying(void)
+{
+	return !stop;
+}
+
+/**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative and errno set.
+ */
+static int getFileType(const char *file)
+{
+	FILE* ftest = fopen(file, "rb");
+	int fileSig = 0;
+	enum file_types file_type = FILE_TYPE_ERROR;
+
+	/* Failure opening file */
+	if(ftest == NULL)
+		return -1;
+
+	if(fread(&fileSig, 4, 1, ftest) == 0)
+		goto err;
+
+	switch(fileSig)
+	{
+		// "RIFF"
+		case 0x46464952:
+			if(fseek(ftest, 4, SEEK_CUR) != 0)
+				break;
+
+			// "WAVE"
+			// Check required as AVI file format also uses "RIFF".
+			if(fread(&fileSig, 4, 1, ftest) == 0)
+				break;
+
+			if(fileSig != 0x45564157)
+				break;
+
+			file_type = FILE_TYPE_WAV;
+			break;
+
+		// "fLaC"
+		case 0x43614c66:
+			file_type = FILE_TYPE_FLAC;
+			break;
+
+		// "OggS"
+		case 0x5367674f:
+			if(isOpus(file) == 0)
+				file_type = FILE_TYPE_OPUS;
+			else
+			{
+				//file_type = FILE_TYPE_OGG;
+				errno = FILE_NOT_SUPPORTED;
+			}
+
+			break;
+
+		default:
+			/*
+			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
+			 * with ID3 tag at the beginning  of the file.
+			 */
+			if((fileSig << 16) == 0xFBFF0000 ||
+					(fileSig << 16) == 0xFAFF0000 ||
+					(fileSig << 8) == 0x33444900)
+			{
+				file_type = FILE_TYPE_MP3;
+				break;
+			}
+
+			/* TODO: Add this again at some point */
+			//printf("Unknown magic number: %#010x\n.", fileSig);
+			errno = FILE_NOT_SUPPORTED;
+			break;
+	}
+
+err:
+	fclose(ftest);
+	return file_type;
+}
+
+/**
  * Should only be called from a new thread only, and have only one playback
  * thread at time. This function has not been written for more than one
  * playback thread in mind.
+ *
+ * \param	infoIn	Playback information.
  */
 void playFile(void* infoIn)
 {
@@ -28,10 +136,6 @@ void playFile(void* infoIn)
 	int				ret = -1;
 	const char*		file = info->file;
 
-
-	//info->errInfo->errstr = strdup("Testing.");
-	//errno = 1001;
-	//goto err;
 	/* Reset previous stop command */
 	stop = false;
 
@@ -116,7 +220,7 @@ void playFile(void* infoIn)
 		{
 			size_t read = (*decoder.decode)(&buffer1[0]);
 
-			if(read == 0)
+			if(read <= 0)
 			{
 				lastbuf = true;
 				continue;
@@ -131,7 +235,7 @@ void playFile(void* infoIn)
 		{
 			size_t read = (*decoder.decode)(&buffer2[0]);
 
-			if(read == 0)
+			if(read <= 0)
 			{
 				lastbuf = true;
 				continue;
@@ -157,107 +261,6 @@ out:
 
 err:
 	*info->errInfo->error = errno;
-	printf("%s:%d errno:%d %d\n", __func__, __LINE__, errno, *info->errInfo->error);
 	svcSignalEvent(*info->errInfo->failEvent);
 	goto out;
-}
-
-/**
- * Pause or play current file.
- *
- * \return	True if paused.
- */
-bool togglePlayback(void)
-{
-	bool paused = ndspChnIsPaused(CHANNEL);
-	ndspChnSetPaused(CHANNEL, !paused);
-	return !paused;
-}
-
-void stopPlayback(void)
-{
-	stop = true;
-}
-
-bool isPlaying(void)
-{
-	return !stop;
-}
-
-/**
- * Obtains file type.
- *
- * \param	file	File location.
- * \return			File type, else negative and errno set.
- */
-int getFileType(const char *file)
-{
-	FILE* ftest = fopen(file, "rb");
-	int fileSig = 0;
-	enum file_types file_type = FILE_TYPE_ERROR;
-
-	/* Failure opening file */
-	if(ftest == NULL)
-		return -1;
-
-	if(fread(&fileSig, 4, 1, ftest) == 0)
-		goto err;
-
-	switch(fileSig)
-	{
-		// "RIFF"
-		case 0x46464952:
-			if(fseek(ftest, 4, SEEK_CUR) != 0)
-				break;
-
-			// "WAVE"
-			// Check required as AVI file format also uses "RIFF".
-			if(fread(&fileSig, 4, 1, ftest) == 0)
-				break;
-
-			if(fileSig != 0x45564157)
-				break;
-
-			file_type = FILE_TYPE_WAV;
-			break;
-
-		// "fLaC"
-		case 0x43614c66:
-			file_type = FILE_TYPE_FLAC;
-			break;
-
-		// "OggS"
-		case 0x5367674f:
-			if(isOpus(file) == 0)
-				file_type = FILE_TYPE_OPUS;
-			else
-			{
-				//file_type = FILE_TYPE_OGG;
-				errno = FILE_NOT_SUPPORTED;
-			}
-
-			break;
-
-		default:
-			/*
-			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
-			 * with ID3 tag at the beginning  of the file.
-			 */
-			if((fileSig << 16) == 0xFBFF0000 ||
-					(fileSig << 16) == 0xFAFF0000 ||
-					(fileSig << 8) == 0x33444900)
-			{
-				file_type = FILE_TYPE_MP3;
-				break;
-			}
-
-			/* TODO: Add this again at some point */
-			//printf("Unknown magic number: %#010x\n.", fileSig);
-			errno = FILE_NOT_SUPPORTED;
-			break;
-	}
-
-err:
-	fclose(ftest);
-	return file_type;
 }
