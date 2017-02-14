@@ -7,11 +7,29 @@
  * LICENSE file.
  */
 
+#ifndef ctrmus_main_h
+#define ctrmus_main_h
+
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 
 /* Maximum number of lines that can be displayed */
 #define	MAX_LIST		27
+
+struct watchdogInfo
+{
+	PrintConsole*		screen;
+	struct errInfo_t*	errInfo;
+};
+
+/**
+ * Allows the playback thread to return any error messages that it may
+ * encounter.
+ *
+ * \param	infoIn	Struct containing addresses of the event, the error code,
+ *					and an optional error string.
+ */
+void playbackWatchdog(void* infoIn);
 
 /**
  * Get number of files in current working folder
@@ -21,12 +39,4 @@
  */
 int getNumberFiles(void);
 
-/**
- * List current directory.
- *
- * \param	from	First entry in directory to list.
- * \param	max		Maximum number of entries to list. Must be > 0.
- * \param	select	File to show as selected. Must be > 0.
- * \return			Number of entries listed or negative on error.
- */
-int listDir(int from, int max, int select);
+#endif

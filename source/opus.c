@@ -71,7 +71,8 @@ uint8_t channelOpus(void)
  * Decode part of open Opus file.
  *
  * \param buffer	Decoded output.
- * \return			Samples read for each channel.
+ * \return			Samples read for each channel. 0 for end of file, negative
+ *					for error.
  */
 uint64_t decodeOpus(void* buffer)
 {
@@ -104,11 +105,7 @@ uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut)
 				samplesToRead > 120*48*2 ? 120*48*2 : samplesToRead);
 
 		if(samplesJustRead < 0)
-		{
-			/* TODO: Printing should not be done here. */
-			printf("\nFatal error decoding Opus: %d.", samplesJustRead);
-			return 0;
-		}
+			return samplesJustRead;
 		else if(samplesJustRead == 0)
 		{
 			/* End of file reached. */

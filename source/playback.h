@@ -1,4 +1,8 @@
-enum file_types {
+#ifndef ctrmus_playback_h
+#define ctrmus_playback_h
+
+enum file_types
+{
 	FILE_TYPE_ERROR = -1,
 	FILE_TYPE_WAV,
 	FILE_TYPE_FLAC,
@@ -7,12 +11,36 @@ enum file_types {
 	FILE_TYPE_MP3
 };
 
-int playFile(const char* file);
+struct playbackInfo_t
+{
+	char*				file;
+	struct errInfo_t*	errInfo;
+};
 
 /**
- * Obtains file type.
+ * Should only be called from a new thread only, and have only one playback
+ * thread at time. This function has not been written for more than one
+ * playback thread in mind.
  *
- * \param	file	File location.
- * \return			File type, else negative.
+ * \param	infoIn	Playback information.
  */
-int getFileType(const char *file);
+void playFile(void* infoIn);
+
+/**
+ * Pause or play current file.
+ *
+ * \return	True if paused.
+ */
+bool togglePlayback(void);
+
+/**
+ * Stops current playback. Playback thread should exit as a result.
+ */
+void stopPlayback(void);
+
+/**
+ * Returns whether music is playing or paused.
+ */
+bool isPlaying(void);
+
+#endif
