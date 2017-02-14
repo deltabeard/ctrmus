@@ -7,6 +7,11 @@
  * LICENSE file.
  */
 
+#ifndef ctrmus_main_h
+#define ctrmus_main_h
+
+#include "playback.h"
+
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 
@@ -42,3 +47,5 @@ int getNumberFiles(void);
  * \return			Number of entries listed or negative on error.
  */
 int listDir(int from, int max, int select);
+
+#endif

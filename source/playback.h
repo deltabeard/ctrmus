@@ -1,3 +1,6 @@
+#ifndef ctrmus_playback_h
+#define ctrmus_playback_h
+
 enum file_types
 {
 	FILE_TYPE_ERROR = -1,
@@ -34,3 +37,5 @@ bool isPlaying(void);
  * \return			File type, else negative.
  */
 int getFileType(const char *file);
+
+#endif

@@ -13,7 +13,7 @@
 			err, strerror(errno)); } while (0)
 
 #define delete(ptr) \
-	free(ptr); ptr = NULL
+	free((void*) ptr); ptr = NULL
 
 struct decoder_fn
 {

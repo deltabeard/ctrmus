@@ -17,9 +17,8 @@
 
 #include "all.h"
 #include "error.h"
-// TODO: Remove order requirement.
-#include "playback.h"
 #include "main.h"
+#include "playback.h"
 
 volatile bool runThreads = true;
 
@@ -35,7 +34,7 @@ int main(int argc, char **argv)
 	struct watchdogInfo	watchdogInfoIn;
 	struct errInfo_t	errInfo;
 	struct playbackInfo_t playbackInfo;
-	int error = 0;
+	volatile int	error = 0;
 
 	gfxInitDefault();
 	sdmcInit();
@@ -50,7 +49,8 @@ int main(int argc, char **argv)
 
 	watchdogInfoIn.screen = &topScreen;
 	watchdogInfoIn.errInfo = &errInfo;
-	watchdogThread = threadCreate(playbackWatchdog, &watchdogInfoIn, 4 * 1024, 0x20, -2, true);
+	watchdogThread = threadCreate(playbackWatchdog,
+			&watchdogInfoIn, 4 * 1024, 0x20, -2, true);
 
 	playbackInfo.file = NULL;
 	playbackInfo.errInfo = &errInfo;
@@ -64,8 +64,6 @@ int main(int argc, char **argv)
 	}
 
 	fileMax = getNumberFiles();
-
-	consoleSelect(&bottomScreen);
 
 	/**
 	 * This allows for music to continue playing through the headphones whilst
@@ -280,17 +278,15 @@ void playbackWatchdog(void* infoIn)
 
 	while(runThreads)
 	{
-		printf("%s:%d\n", __func__, __LINE__);
 		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
-		printf("%s:%d\n", __func__, __LINE__);
 		svcClearEvent(*info->errInfo->failEvent);
-		printf("%s:%d\n", __func__, __LINE__);
 		consoleSelect(info->screen);
-		printf("Here %s:%d err:%d\n", __func__, __LINE__, *info->errInfo->error);
 
 		if(*info->errInfo->error != 0)
 		{
-			printf("An error occurred: %s", ctrmus_strerror(*info->errInfo->error));
+			printf("Error %d: %s", *info->errInfo->error,
+					ctrmus_strerror(*info->errInfo->error));
+
 			if(info->errInfo->errstr != NULL)
 			{
 				printf(" %s", info->errInfo->errstr);
