@@ -13,7 +13,9 @@
 static volatile bool stop = false;
 
 /**
- * Should only be called from a new thread only.
+ * Should only be called from a new thread only, and have only one playback
+ * thread at time. This function has not been written for more than one
+ * playback thread in mind.
  */
 void playFile(void* infoIn)
 {

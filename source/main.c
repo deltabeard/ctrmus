@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 			if(kDown & KEY_B)
 			{
 				stopPlayback();
-				changeFile(NULL, NULL);
+				changeFile(NULL, &playbackInfo);
 				consoleSelect(&topScreen);
 				puts("Stopped");
 				continue;
@@ -238,8 +238,8 @@ int main(int argc, char **argv)
 out:
 	puts("Exiting...");
 	runThreads = false;
-	stopPlayback();
-	changeFile(NULL, NULL);
+	svcSignalEvent(playbackFailEvent);
+	changeFile(NULL, &playbackInfo);
 
 	gfxExit();
 	sdmcExit();
