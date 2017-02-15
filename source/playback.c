@@ -11,7 +11,7 @@
 #include "playback.h"
 #include "wav.h"
 
-static volatile bool stop = false;
+static volatile bool stop = true;
 
 /**
  * Pause or play current file.
