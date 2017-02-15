@@ -260,12 +260,11 @@ int main(int argc, char **argv)
 		u32			kHeld;
 		static u64	mill = 0;
 
-		hidScanInput();
-
-		gfxSwapBuffers();
 		gfxFlushBuffers();
 		gspWaitForVBlank();
+		gfxSwapBuffers();
 
+		hidScanInput();
 		kDown = hidKeysDown();
 		kHeld = hidKeysHeld();
 
@@ -400,8 +399,7 @@ int main(int argc, char **argv)
 		if((kDown & KEY_B) ||
 				((kDown & KEY_A) && (from == 0 && fileNum == 0)))
 		{
-			if(chdir("..") != 0)
-				err_print("chdir");
+			chdir("..");
 
 			fileNum = 0;
 			from = 0;
