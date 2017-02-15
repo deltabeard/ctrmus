@@ -47,7 +47,7 @@ bool isPlaying(void)
  * \param	file	File location.
  * \return			File type, else negative and errno set.
  */
-static int getFileType(const char *file)
+int getFileType(const char *file)
 {
 	FILE* ftest = fopen(file, "rb");
 	uint32_t fileSig;
@@ -136,6 +136,7 @@ void playFile(void* infoIn)
 	bool			lastbuf = false;
 	int				ret = -1;
 	const char*		file = info->file;
+	bool			isNdspInit = false;
 
 	/* Reset previous stop command */
 	stop = false;
@@ -167,6 +168,8 @@ void playFile(void* infoIn)
 		errno = NDSP_INIT_FAIL;
 		goto err;
 	}
+
+	isNdspInit = true;
 
 	if((ret = (*decoder.init)(file)) != 0)
 	{
@@ -253,8 +256,13 @@ void playFile(void* infoIn)
 
 	(*decoder.exit)();
 out:
-	ndspChnWaveBufClear(CHANNEL);
-	ndspExit();
+	if(isNdspInit == true)
+	{
+		ndspChnWaveBufClear(CHANNEL);
+		ndspExit();
+	}
+
+	delete(info->file);
 	linearFree(buffer1);
 	linearFree(buffer2);
 	threadExit(0);

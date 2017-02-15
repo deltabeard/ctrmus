@@ -31,15 +31,6 @@ struct playbackInfo_t
 };
 
 /**
- * Should only be called from a new thread only, and have only one playback
- * thread at time. This function has not been written for more than one
- * playback thread in mind.
- *
- * \param	infoIn	Playback information.
- */
-void playFile(void* infoIn);
-
-/**
  * Pause or play current file.
  *
  * \return	True if paused.
@@ -55,5 +46,22 @@ void stopPlayback(void);
  * Returns whether music is playing or paused.
  */
 bool isPlaying(void);
+
+/**
+ * Obtains file type.
+ *
+ * \param	file	File location.
+ * \return			File type, else negative and errno set.
+ */
+int getFileType(const char *file);
+
+/**
+ * Should only be called from a new thread only, and have only one playback
+ * thread at time. This function has not been written for more than one
+ * playback thread in mind.
+ *
+ * \param	infoIn	Playback information.
+ */
+void playFile(void* infoIn);
 
 #endif

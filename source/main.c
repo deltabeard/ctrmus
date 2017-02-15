@@ -82,6 +82,13 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 	s32 prio;
 	static Thread thread = NULL;
 	
+	if(ep_file != NULL && getFileType(ep_file) == FILE_TYPE_ERROR)
+	{
+		*playbackInfo->errInfo->error = errno;
+		svcSignalEvent(*playbackInfo->errInfo->failEvent);
+		return -1;
+	}
+
 	/**
 	 * If music is playing, stop it. Only one playback thread should be playing
 	 * at any time.
@@ -94,9 +101,6 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 		threadJoin(thread, U64_MAX);
 		threadFree(thread);
 		thread = NULL;
-
-		/* free allocated file string */
-		delete(playbackInfo->file);
 	}
 
 	if(ep_file == NULL || playbackInfo == NULL)
