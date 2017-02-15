@@ -3,11 +3,11 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <./dr_libs/dr_flac.h>
 
-#include "all.h"
 #include "flac.h"
+#include "playback.h"
 
 static drflac*		pFlac;
-static const int	buffSize = 16 * 1024;
+static const size_t	buffSize = 16 * 1024;
 
 /**
  * Set decoder parameters for flac.

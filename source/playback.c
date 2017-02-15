@@ -1,4 +1,5 @@
 #include <3ds.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,7 +50,7 @@ bool isPlaying(void)
 static int getFileType(const char *file)
 {
 	FILE* ftest = fopen(file, "rb");
-	int fileSig = 0;
+	uint32_t fileSig;
 	enum file_types file_type = FILE_TYPE_ERROR;
 
 	/* Failure opening file */
@@ -83,7 +84,7 @@ static int getFileType(const char *file)
 			break;
 
 		// "OggS"
-		case 0x5367674f:
+		case 0x5367674F:
 			if(isOpus(file) == 0)
 				file_type = FILE_TYPE_OPUS;
 			else
@@ -161,7 +162,7 @@ void playFile(void* infoIn)
 			goto err;
 	}
 
-	if(R_FAILED(ndspInit()))
+	if(ndspInit() < 0)
 	{
 		errno = NDSP_INIT_FAIL;
 		goto err;

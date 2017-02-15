@@ -51,7 +51,7 @@ EXTRA_OUTPUT_FILES :=
 LIBRARY_DIRS := $(DEVKITPRO)/libctru $(DEVKITPRO)/portlibs/armv6k
 LIBRARIES := mpg123 opusfile opus ogg ctru m
 
-BUILD_FLAGS :=
+BUILD_FLAGS := -Wall -Wextra
 RUN_FLAGS :=
 
 VERSION_PARTS := $(subst ., ,$(shell git describe --tags --abbrev=0))

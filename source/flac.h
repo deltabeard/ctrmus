@@ -1,3 +1,5 @@
+#include "playback.h"
+
 /**
  * Set decoder parameters for flac.
  *

@@ -1,6 +1,9 @@
 #ifndef ctrmus_playback_h
 #define ctrmus_playback_h
 
+/* Channel to play music on */
+#define CHANNEL	0x08
+
 enum file_types
 {
 	FILE_TYPE_ERROR = -1,
@@ -9,6 +12,16 @@ enum file_types
 	FILE_TYPE_OGG,
 	FILE_TYPE_OPUS,
 	FILE_TYPE_MP3
+};
+
+struct decoder_fn
+{
+	int (* init)(const char* file);
+	uint32_t (* rate)(void);
+	uint8_t (* channels)(void);
+	size_t buffSize;
+	uint64_t (* decode)(void*);
+	void (* exit)(void);
 };
 
 struct playbackInfo_t
