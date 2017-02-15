@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "all.h"
 #include "opus.h"
+#include "playback.h"
 
 static OggOpusFile*		opusFile;
 static const OpusHead*	opusHead;
-static const int		buffSize = 32 * 1024;
+static const size_t		buffSize = 32 * 1024;
 
 /**
  * Set decoder parameters for Opus.

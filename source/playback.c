@@ -1,4 +1,5 @@
 #include <3ds.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,10 +47,10 @@ bool isPlaying(void)
  * \param	file	File location.
  * \return			File type, else negative and errno set.
  */
-static int getFileType(const char *file)
+int getFileType(const char *file)
 {
 	FILE* ftest = fopen(file, "rb");
-	int fileSig = 0;
+	uint32_t fileSig;
 	enum file_types file_type = FILE_TYPE_ERROR;
 
 	/* Failure opening file */
@@ -83,7 +84,7 @@ static int getFileType(const char *file)
 			break;
 
 		// "OggS"
-		case 0x5367674f:
+		case 0x5367674F:
 			if(isOpus(file) == 0)
 				file_type = FILE_TYPE_OPUS;
 			else
@@ -135,6 +136,7 @@ void playFile(void* infoIn)
 	bool			lastbuf = false;
 	int				ret = -1;
 	const char*		file = info->file;
+	bool			isNdspInit = false;
 
 	/* Reset previous stop command */
 	stop = false;
@@ -161,11 +163,13 @@ void playFile(void* infoIn)
 			goto err;
 	}
 
-	if(R_FAILED(ndspInit()))
+	if(ndspInit() < 0)
 	{
 		errno = NDSP_INIT_FAIL;
 		goto err;
 	}
+
+	isNdspInit = true;
 
 	if((ret = (*decoder.init)(file)) != 0)
 	{
@@ -202,10 +206,6 @@ void playFile(void* infoIn)
 
 	while(stop == false)
 	{
-		gfxSwapBuffers();
-		gfxFlushBuffers();
-		gspWaitForVBlank();
-
 		svcSleepThread(100 * 1000);
 
 		/* When the last buffer has finished playing, break. */
@@ -252,8 +252,13 @@ void playFile(void* infoIn)
 
 	(*decoder.exit)();
 out:
-	ndspChnWaveBufClear(CHANNEL);
-	ndspExit();
+	if(isNdspInit == true)
+	{
+		ndspChnWaveBufClear(CHANNEL);
+		ndspExit();
+	}
+
+	delete(info->file);
 	linearFree(buffer1);
 	linearFree(buffer2);
 	threadExit(0);

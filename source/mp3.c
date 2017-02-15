@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "all.h"
 #include "mp3.h"
+#include "playback.h"
 
-static int*				buffSize;
+static size_t*				buffSize;
 static mpg123_handle	*mh = NULL;
 static uint32_t			rate;
 static uint8_t			channels;

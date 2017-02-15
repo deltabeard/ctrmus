@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "all.h"
 #include "wav.h"
+#include "playback.h"
 
-static const int	buffSize	= 16 * 1024;
+static const size_t	buffSize	= 16 * 1024;
 static FILE*		pWav		= NULL;
 static char			header[45];
 static uint8_t		channels;

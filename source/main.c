@@ -32,7 +32,8 @@ static void showControls(void)
 			"Stop: L+B\n"
 			"A: Open File\n"
 			"B: Go up folder\n"
-			"Start: Exit\n");
+			"Start: Exit\n"
+			"Browse: Up, Down, Left or Right\n");
 }
 
 /**
@@ -82,6 +83,13 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 	s32 prio;
 	static Thread thread = NULL;
 	
+	if(ep_file != NULL && getFileType(ep_file) == FILE_TYPE_ERROR)
+	{
+		*playbackInfo->errInfo->error = errno;
+		svcSignalEvent(*playbackInfo->errInfo->failEvent);
+		return -1;
+	}
+
 	/**
 	 * If music is playing, stop it. Only one playback thread should be playing
 	 * at any time.
@@ -94,9 +102,6 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 		threadJoin(thread, U64_MAX);
 		threadFree(thread);
 		thread = NULL;
-
-		/* free allocated file string */
-		delete(playbackInfo->file);
 	}
 
 	if(ep_file == NULL || playbackInfo == NULL)
@@ -256,12 +261,11 @@ int main(int argc, char **argv)
 		u32			kHeld;
 		static u64	mill = 0;
 
-		hidScanInput();
-
-		gfxSwapBuffers();
 		gfxFlushBuffers();
 		gspWaitForVBlank();
+		gfxSwapBuffers();
 
+		hidScanInput();
 		kDown = hidKeysDown();
 		kHeld = hidKeysHeld();
 
@@ -343,6 +347,52 @@ int main(int argc, char **argv)
 				err_print("Unable to list directory.");
 		}
 
+		if((kDown & KEY_LEFT ||
+					((kHeld & KEY_LEFT) && (osGetTime() - mill > 500))) &&
+				fileNum > 0)
+		{
+			int skip = MAX_LIST / 2;
+
+			if(fileNum < skip)
+				skip = fileNum;
+
+			fileNum -= skip;
+
+			/* 26 is the maximum number of entries that can be printed */
+			if(fileMax - fileNum > 26 && from != 0)
+			{
+				from -= skip;
+				if(from < 0)
+					from = 0;
+			}
+
+			if(listDir(from, MAX_LIST, fileNum) < 0)
+				err_print("Unable to list directory.");
+		}
+
+		if((kDown & KEY_RIGHT ||
+					((kHeld & KEY_RIGHT) && (osGetTime() - mill > 500))) &&
+				fileNum < fileMax)
+		{
+			int skip = fileMax - fileNum;
+			
+			if(skip > MAX_LIST / 2)
+				skip = MAX_LIST / 2;
+
+			fileNum += skip;
+
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
+					from < fileMax - MAX_LIST)
+			{
+				from += skip;
+				if(from > fileMax - MAX_LIST)
+					from = fileMax - MAX_LIST;
+			}
+
+			if(listDir(from, MAX_LIST, fileNum) < 0)
+				err_print("Unable to list directory.");
+		}
+
 		/*
 		 * Pressing B goes up a folder, as well as pressing A or R when ".."
 		 * is selected.
@@ -350,8 +400,7 @@ int main(int argc, char **argv)
 		if((kDown & KEY_B) ||
 				((kDown & KEY_A) && (from == 0 && fileNum == 0)))
 		{
-			if(chdir("..") != 0)
-				err_print("chdir");
+			chdir("..");
 
 			fileNum = 0;
 			from = 0;
