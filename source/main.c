@@ -32,7 +32,8 @@ static void showControls(void)
 			"Stop: L+B\n"
 			"A: Open File\n"
 			"B: Go up folder\n"
-			"Start: Exit\n");
+			"Start: Exit\n"
+			"Browse: Up, Down, Left or Right\n");
 }
 
 /**
