@@ -9,19 +9,21 @@
 * Ability to browse directories.
 
 ### Controls
-#### Whilst playing
-A or R = Pause/Play
+L+R or L+Up: Pause
 
-B = Stop
+L+B: Stop
 
-#### When stopped
-A or R = Play selected file or change directory.
+L+Left: Show Controls
 
-B = Go up directory.
+A: Play file or change to selected directory
 
-Up and down = Select file.
+B: Go up folder
 
-Start = Return to Homebrew menu (Only when stopped playing).
+Up & down = Move cursor
+
+Left & right = Move cursor skipping 13 files at a time. 
+
+Start: Exit
 
 ### Contributing
 Have a look at [CONTRIBUTING.md](https://github.com/deltabeard/ctrmus/blob/master/CONTRIBUTING.md) for some info and guidelines on contributing to the project.
