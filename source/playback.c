@@ -210,8 +210,6 @@ void playFile(void* infoIn)
 		gfxFlushBuffers();
 		gspWaitForVBlank();
 
-		svcSleepThread(100 * 1000);
-
 		/* When the last buffer has finished playing, break. */
 		if(lastbuf == true && waveBuf[0].status == NDSP_WBUF_DONE &&
 				waveBuf[1].status == NDSP_WBUF_DONE)
