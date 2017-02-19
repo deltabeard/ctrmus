@@ -7,6 +7,8 @@
  * LICENSE file.
  */
 
+#include <3ds.h>
+
 #ifndef ctrmus_main_h
 #define ctrmus_main_h
 
@@ -20,6 +22,17 @@ struct watchdogInfo
 {
 	PrintConsole*		screen;
 	struct errInfo_t*	errInfo;
+};
+
+struct dirList_t
+{
+	char**	files;
+	int		fileNum;
+
+	char**	directories;
+	int		dirNum;
+
+	char*	currentDir;
 };
 
 /**
