@@ -480,14 +480,6 @@ int main(int argc, char **argv)
 				err_print("Unable to list directory.");
 		}
 
-		if(kDown)
-		{
-			consoleSelect(&topScreen);
-			printf("dirNum: %d fileNum: %d fileSelected: %d\n",
-					dirList.dirNum, dirList.fileNum, fileNum);
-			consoleSelect(&bottomScreen);
-		}
-
 		/*
 		 * Pressing B goes up a folder, as well as pressing A or R when ".."
 		 * is selected.
@@ -512,14 +504,12 @@ int main(int argc, char **argv)
 		{
 			if(dirList.dirNum >= fileNum)
 			{
-				consoleSelect(&topScreen);
-				printf("Changing to %s directory\n", dirList.directories[fileNum - 1]);
-				consoleSelect(&bottomScreen);
 				chdir(dirList.directories[fileNum - 1]);
 				consoleClear();
 				fileMax = getDir(&dirList);
 				fileNum = 0;
 				from = 0;
+
 				if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 					err_print("Unable to list directory.");
 				continue;
@@ -528,55 +518,10 @@ int main(int argc, char **argv)
 			if(dirList.dirNum < fileNum)
 			{
 				consoleSelect(&topScreen);
-				printf("Attempting to play %s\n", dirList.files[fileNum - dirList.dirNum - 1]);
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 				consoleSelect(&bottomScreen);
 				continue;
 			}
-
-#if 0
-			int				audioFileNum = 0;
-			DIR				*dp;
-			struct dirent	*ep;
-
-			dp = opendir(".");
-
-			if(dp != NULL)
-			{
-				while((ep = readdir(dp)) != NULL)
-				{
-					if(audioFileNum == fileNum - 1)
-						break;
-
-					audioFileNum++;
-				}
-
-				if(ep->d_type == DT_DIR)
-				{
-					/* file not allocated yet, so no need to clear it */
-					if(chdir(ep->d_name) != 0)
-						err_print("chdir");
-
-					fileNum = 0;
-					from = 0;
-					fileMax = getNumberFiles();
-					if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
-						err_print("Unable to list directory.");
-
-					closedir(dp);
-					continue;
-				}
-
-				consoleSelect(&topScreen);
-				changeFile(ep->d_name, &playbackInfo);
-				consoleSelect(&bottomScreen);
-
-				if(closedir(dp) != 0)
-					err_print("Closing directory failed.");
-			}
-			else
-				err_print("Unable to open directory.");
-#endif
 		}
 	}
 
