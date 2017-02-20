@@ -16,7 +16,7 @@
 #define DEFAULT_DIR		"sdmc:/"
 
 /* Maximum number of lines that can be displayed */
-#define	MAX_LIST		27
+#define	MAX_LIST		28
 
 struct watchdogInfo
 {

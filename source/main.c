@@ -51,10 +51,10 @@ void playbackWatchdog(void* infoIn)
 	{
 		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
 		svcClearEvent(*info->errInfo->failEvent);
-		consoleSelect(info->screen);
 
 		if(*info->errInfo->error != 0)
 		{
+			consoleSelect(info->screen);
 			printf("Error %d: %s", *info->errInfo->error,
 					ctrmus_strerror(*info->errInfo->error));
 
@@ -204,7 +204,6 @@ static int listDir(int from, int max, int select, struct dirList_t dirList)
 	int				fileNum = 0;
 	int				listed = 0;
 
-	//consoleClear();
 	printf("\033[0;0H");
 	printf("Dir: %.33s\n", dirList.currentDir);
 
@@ -212,9 +211,8 @@ static int listDir(int from, int max, int select, struct dirList_t dirList)
 	{
 		printf("\33[2K%c../\n", select == 0 ? '>' : ' ');
 		listed++;
+		max--;
 	}
-	else
-		max++;
 
 	while(dirList.fileNum + dirList.dirNum > fileNum)
 	{
@@ -245,10 +243,6 @@ static int listDir(int from, int max, int select, struct dirList_t dirList)
 		if(fileNum == max + from)
 			break;
 	}
-
-	/* TODO: Remove crappy bodge to stop last line from not being cleared. */
-	if(from != 0)
-		printf("\33[2K");
 
 	return listed;
 }
@@ -293,7 +287,7 @@ int main(int argc, char **argv)
 	struct watchdogInfo	watchdogInfoIn;
 	struct errInfo_t	errInfo;
 	struct playbackInfo_t playbackInfo;
-	volatile int	error = 0;
+	volatile int		error = 0;
 	struct dirList_t	dirList = {NULL, 0, NULL, 0, NULL};
 
 	gfxInitDefault();
@@ -318,15 +312,12 @@ int main(int argc, char **argv)
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
 
-	consoleSelect(&topScreen);
-	if(getDir(&dirList) > 0)
+	/* TODO: Not actually possible to get less than 0 */
+	if(getDir(&dirList) < 0)
 	{
-		printf("Fourth/%d file: %s\n", dirList.dirNum, dirList.files[3]);
+		puts("Unable to obtain directory information");
+		goto err;
 	}
-	else
-		puts("didn't work");
-
-	consoleSelect(&bottomScreen);
 
 	if(listDir(from, MAX_LIST, 0, dirList) < 0)
 	{
@@ -446,6 +437,7 @@ int main(int argc, char **argv)
 			fileNum -= skip;
 
 			/* 26 is the maximum number of entries that can be printed */
+			/* TODO: Not using MAX_LIST here? */
 			if(fileMax - fileNum > 26 && from != 0)
 			{
 				from -= skip;
@@ -519,7 +511,6 @@ int main(int argc, char **argv)
 			{
 				consoleSelect(&topScreen);
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
-				consoleSelect(&bottomScreen);
 				continue;
 			}
 		}
