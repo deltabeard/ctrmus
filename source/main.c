@@ -51,10 +51,10 @@ void playbackWatchdog(void* infoIn)
 	{
 		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
 		svcClearEvent(*info->errInfo->failEvent);
-		consoleSelect(info->screen);
 
 		if(*info->errInfo->error != 0)
 		{
+			consoleSelect(info->screen);
 			printf("Error %d: %s", *info->errInfo->error,
 					ctrmus_strerror(*info->errInfo->error));
 
@@ -116,6 +116,81 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 	return 0;
 }
 
+static int cmpstringp(const void *p1, const void *p2)
+{
+	/* The actual arguments to this function are "pointers to
+	   pointers to char", but strcmp(3) arguments are "pointers
+	   to char", hence the following cast plus dereference */
+
+	return strcasecmp(* (char * const *) p1, * (char * const *) p2);
+}
+
+/**
+ * Store the list of files and folders in current director to an array.
+ */
+static int getDir(struct dirList_t* dirList)
+{
+	DIR				*dp;
+	struct dirent	*ep;
+	int				fileNum = 0;
+	int				dirNum = 0;
+	char*			wd = getcwd(NULL, 0);
+
+	if(wd == NULL)
+		goto out;
+
+	/* Clear strings */
+	for(int i = 0; i < dirList->dirNum; i++)
+		free(dirList->directories[i]);
+
+	for(int i = 0; i < dirList->fileNum; i++)
+		free(dirList->files[i]);
+
+	free(dirList->currentDir);
+
+	if((dirList->currentDir = strdup(wd)) == NULL)
+		puts("Failure");
+
+	if((dp = opendir(wd)) == NULL)
+		goto out;
+
+	while((ep = readdir(dp)) != NULL)
+	{
+		if(ep->d_type == DT_DIR)
+		{
+			/* Add more space for another pointer to a dirent struct */
+			dirList->directories = realloc(dirList->directories, (dirNum + 1) * sizeof(char*));
+
+			if((dirList->directories[dirNum] = strdup(ep->d_name)) == NULL)
+				puts("Failure");
+
+			dirNum++;
+			continue;
+		}
+
+		/* Add more space for another pointer to a dirent struct */
+		dirList->files = realloc(dirList->files, (fileNum + 1) * sizeof(char*));
+
+		if((dirList->files[fileNum] = strdup(ep->d_name)) == NULL)
+			puts("Failure");
+
+		fileNum++;
+	}
+
+	qsort(&dirList->files[0], fileNum, sizeof(char *), cmpstringp);
+	qsort(&dirList->directories[0], dirNum, sizeof(char *), cmpstringp);
+
+	dirList->dirNum = dirNum;
+	dirList->fileNum = fileNum;
+
+	if(closedir(dp) != 0)
+		goto out;
+
+out:
+	free(wd);
+	return fileNum + dirNum;
+}
+
 /**
  * List current directory.
  *
@@ -124,30 +199,22 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
  * \param	select	File to show as selected. Must be > 0.
  * \return			Number of entries listed or negative on error.
  */
-static int listDir(int from, int max, int select)
+static int listDir(int from, int max, int select, struct dirList_t dirList)
 {
-	DIR				*dp;
-	struct dirent	*ep;
 	int				fileNum = 0;
 	int				listed = 0;
-	char*			wd = getcwd(NULL, 0);
 
-	if(wd == NULL)
-		goto err;
-
-	consoleClear();
-	printf("Dir: %.33s\n", wd);
-
-	if((dp = opendir(wd)) == NULL)
-		goto err;
+	printf("\033[0;0H");
+	printf("Dir: %.33s\n", dirList.currentDir);
 
 	if(from == 0)
 	{
-		printf("%c../\n", select == 0 ? '>' : ' ');
+		printf("\33[2K%c../\n", select == 0 ? '>' : ' ');
 		listed++;
+		max--;
 	}
 
-	while((ep = readdir(dp)) != NULL)
+	while(dirList.fileNum + dirList.dirNum > fileNum)
 	{
 		fileNum++;
 
@@ -156,26 +223,28 @@ static int listDir(int from, int max, int select)
 
 		listed++;
 
-		printf("%c%s%.37s%s\n",
-				select == fileNum ? '>' : ' ',
-				ep->d_type == DT_DIR ? "\x1b[34;1m" : "",
-				ep->d_name,
-				ep->d_type == DT_DIR ? "/\x1b[0m" : "");
+		if(dirList.dirNum >= fileNum)
+		{
+			printf("\33[2K%c\x1b[34;1m%.37s/\x1b[0m\n",
+					select == fileNum ? '>' : ' ',
+					dirList.directories[fileNum - 1]);
+
+		}
+
+		/* fileNum must be referring to a file instead of a directory. */
+		if(dirList.dirNum < fileNum)
+		{
+			printf("\33[2K%c%.37s\n",
+					select == fileNum ? '>' : ' ',
+					dirList.files[fileNum - dirList.dirNum - 1]);
+
+		}
 
 		if(fileNum == max + from)
 			break;
 	}
 
-	if(closedir(dp) != 0)
-		goto err;
-
-out:
-	free(wd);
 	return listed;
-
-err:
-	listed = -1;
-	goto out;
 }
 
 /**
@@ -218,7 +287,8 @@ int main(int argc, char **argv)
 	struct watchdogInfo	watchdogInfoIn;
 	struct errInfo_t	errInfo;
 	struct playbackInfo_t playbackInfo;
-	volatile int	error = 0;
+	volatile int		error = 0;
+	struct dirList_t	dirList = {NULL, 0, NULL, 0, NULL};
 
 	gfxInitDefault();
 	sdmcInit();
@@ -241,7 +311,15 @@ int main(int argc, char **argv)
 
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
-	if(listDir(from, MAX_LIST, 0) < 0)
+
+	/* TODO: Not actually possible to get less than 0 */
+	if(getDir(&dirList) < 0)
+	{
+		puts("Unable to obtain directory information");
+		goto err;
+	}
+
+	if(listDir(from, MAX_LIST, 0, dirList) < 0)
 	{
 		err_print("Unable to list directory.");
 		goto err;
@@ -329,7 +407,7 @@ int main(int argc, char **argv)
 			if(fileMax - fileNum > 26 && from != 0)
 				from--;
 
-			if(listDir(from, MAX_LIST, fileNum) < 0)
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
 		}
 
@@ -343,7 +421,7 @@ int main(int argc, char **argv)
 					from < fileMax - MAX_LIST)
 				from++;
 
-			if(listDir(from, MAX_LIST, fileNum) < 0)
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
 		}
 
@@ -359,6 +437,7 @@ int main(int argc, char **argv)
 			fileNum -= skip;
 
 			/* 26 is the maximum number of entries that can be printed */
+			/* TODO: Not using MAX_LIST here? */
 			if(fileMax - fileNum > 26 && from != 0)
 			{
 				from -= skip;
@@ -366,7 +445,7 @@ int main(int argc, char **argv)
 					from = 0;
 			}
 
-			if(listDir(from, MAX_LIST, fileNum) < 0)
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
 		}
 
@@ -389,7 +468,7 @@ int main(int argc, char **argv)
 					from = fileMax - MAX_LIST;
 			}
 
-			if(listDir(from, MAX_LIST, fileNum) < 0)
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
 		}
 
@@ -401,12 +480,13 @@ int main(int argc, char **argv)
 				((kDown & KEY_A) && (from == 0 && fileNum == 0)))
 		{
 			chdir("..");
+			consoleClear();
+			fileMax = getDir(&dirList);
 
 			fileNum = 0;
 			from = 0;
-			fileMax = getNumberFiles();
 
-			if(listDir(from, MAX_LIST, fileNum) < 0)
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
 
 			continue;
@@ -414,54 +494,27 @@ int main(int argc, char **argv)
 
 		if(kDown & KEY_A)
 		{
-			int				audioFileNum = 0;
-			DIR				*dp;
-			struct dirent	*ep;
-
-			dp = opendir(".");
-
-			if(dp != NULL)
+			if(dirList.dirNum >= fileNum)
 			{
-				while((ep = readdir(dp)) != NULL)
-				{
-					if(audioFileNum == fileNum - 1)
-						break;
+				chdir(dirList.directories[fileNum - 1]);
+				consoleClear();
+				fileMax = getDir(&dirList);
+				fileNum = 0;
+				from = 0;
 
-					audioFileNum++;
-				}
-
-				if(ep->d_type == DT_DIR)
-				{
-					/* file not allocated yet, so no need to clear it */
-					if(chdir(ep->d_name) != 0)
-						err_print("chdir");
-
-					fileNum = 0;
-					from = 0;
-					fileMax = getNumberFiles();
-					if(listDir(from, MAX_LIST, fileNum) < 0)
-						err_print("Unable to list directory.");
-
-					closedir(dp);
-					continue;
-				}
-
-				consoleSelect(&topScreen);
-				changeFile(ep->d_name, &playbackInfo);
-				consoleSelect(&bottomScreen);
-
-				if(closedir(dp) != 0)
-					err_print("Closing directory failed.");
+				if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
+					err_print("Unable to list directory.");
+				continue;
 			}
-			else
-				err_print("Unable to open directory.");
+
+			if(dirList.dirNum < fileNum)
+			{
+				consoleSelect(&topScreen);
+				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+				continue;
+			}
 		}
 	}
-#ifdef DEBUG
-		consoleSelect(&topScreen);
-		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
-		consoleSelect(&bottomScreen);
-#endif
 
 out:
 	puts("Exiting...");

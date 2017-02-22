@@ -7,6 +7,8 @@
  * LICENSE file.
  */
 
+#include <3ds.h>
+
 #ifndef ctrmus_main_h
 #define ctrmus_main_h
 
@@ -14,12 +16,23 @@
 #define DEFAULT_DIR		"sdmc:/"
 
 /* Maximum number of lines that can be displayed */
-#define	MAX_LIST		27
+#define	MAX_LIST		28
 
 struct watchdogInfo
 {
 	PrintConsole*		screen;
 	struct errInfo_t*	errInfo;
+};
+
+struct dirList_t
+{
+	char**	files;
+	int		fileNum;
+
+	char**	directories;
+	int		dirNum;
+
+	char*	currentDir;
 };
 
 /**
