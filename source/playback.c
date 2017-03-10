@@ -87,6 +87,8 @@ int getFileType(const char *file)
 		case 0x5367674F:
 			if(isOpus(file) == 0)
 				file_type = FILE_TYPE_OPUS;
+			else if(isFlac(file) == 0)
+				file_type = FILE_TYPE_FLAC;
 			else
 			{
 				//file_type = FILE_TYPE_OGG;

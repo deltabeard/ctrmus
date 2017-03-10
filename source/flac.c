@@ -75,3 +75,21 @@ void exitFlac(void)
 {
 	drflac_close(pFlac);
 }
+
+/**
+ * Checks if the input file is Flac
+ *
+ * \param in	Input file.
+ * \return		0 if Flac file, else not or failure.
+ */
+int isFlac(const char* in)
+{
+	int err = -1;
+	drflac* pFlac = drflac_open_file(in);
+
+	if(pFlac != NULL)
+		err = 0;
+
+	drflac_close(pFlac);
+	return err;
+}
