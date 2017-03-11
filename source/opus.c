@@ -53,7 +53,7 @@ out:
  */
 uint32_t rateOpus(void)
 {
-	return opusHead->input_sample_rate;
+	return 48000;
 }
 
 /**
