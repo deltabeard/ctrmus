@@ -82,7 +82,7 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 {
 	s32 prio;
 	static Thread thread = NULL;
-	
+
 	if(ep_file != NULL && getFileType(ep_file) == FILE_TYPE_ERROR)
 	{
 		*playbackInfo->errInfo->error = errno;
@@ -454,7 +454,7 @@ int main(int argc, char **argv)
 				fileNum < fileMax)
 		{
 			int skip = fileMax - fileNum;
-			
+
 			if(skip > MAX_LIST / 2)
 				skip = MAX_LIST / 2;
 
