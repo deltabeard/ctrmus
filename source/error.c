@@ -26,6 +26,10 @@ char* ctrmus_strerror(int err)
 			error = "File type is not supported";
 			break;
 
+		case UNSUPPORTED_CHANNELS:
+			error = "Unsupported number of channels";
+			break;
+
 		default:
 			error = strerror(err);
 			break;

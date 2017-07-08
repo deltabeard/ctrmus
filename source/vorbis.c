@@ -8,7 +8,6 @@
 
 static OggVorbis_File	vorbisFile;
 static vorbis_info		*vi;
-static int				current_section;
 static FILE				*f;
 static const size_t		buffSize = 8 * 4096;
 
@@ -36,7 +35,9 @@ void setVorbis(struct decoder_fn* decoder)
 int initVorbis(const char* file)
 {
 	int err = -1;
-	f = fopen(file, "r");
+
+	if((f = fopen(file, "rb")) == NULL)
+		goto out;
 
 	if(ov_open(f, &vorbisFile, NULL, 0) < 0)
 		goto out;
@@ -44,7 +45,6 @@ int initVorbis(const char* file)
 	if((vi = ov_info(&vorbisFile, -1)) == NULL)
 		goto out;
 
-	current_section = 0;
 	err = 0;
 
 out:
@@ -58,7 +58,6 @@ out:
  */
 uint32_t rateVorbis(void)
 {
-	printf("Rate: %ld\n", vi->rate);
 	return vi->rate;
 }
 
@@ -69,7 +68,6 @@ uint32_t rateVorbis(void)
  */
 uint8_t channelVorbis(void)
 {
-	printf("Rate: %d\n", vi->channels);
 	return vi->channels;
 }
 
@@ -90,8 +88,8 @@ uint64_t decodeVorbis(void* buffer)
  */
 void exitVorbis(void)
 {
-	fclose(f);
 	ov_clear(&vorbisFile);
+	fclose(f);
 }
 
 /**
@@ -108,8 +106,11 @@ uint64_t fillVorbisBuffer(char* bufferOut)
 
 	while(samplesToRead > 0)
 	{
+		static int current_section;
 		int samplesJustRead =
-			ov_read(&vorbisFile, bufferOut, samplesToRead, &current_section);
+			ov_read(&vorbisFile, bufferOut,
+					samplesToRead > 4096 ? 4096	: samplesToRead,
+					&current_section);
 
 		if(samplesJustRead < 0)
 			return samplesJustRead;
@@ -119,12 +120,12 @@ uint64_t fillVorbisBuffer(char* bufferOut)
 			break;
 		}
 
-		samplesRead += samplesJustRead * 2;
-		samplesToRead -= samplesJustRead * 2;
-		bufferOut += samplesJustRead * 2;
+		samplesRead += samplesJustRead;
+		samplesToRead -= samplesJustRead;
+		bufferOut += samplesJustRead;
 	}
 
-	return samplesRead;
+	return samplesRead / sizeof(int16_t);
 }
 
 /**
@@ -135,7 +136,6 @@ uint64_t fillVorbisBuffer(char* bufferOut)
  */
 int isVorbis(const char *in)
 {
-	// TODO: Only free if a new file is selected to play.
 	FILE *ft = fopen(in, "r");
 	OggVorbis_File testvf;
 	int err;
@@ -145,7 +145,7 @@ int isVorbis(const char *in)
 
 	err = ov_test(ft, &testvf, NULL, 0);
 
-	fclose(ft);
 	ov_clear(&testvf);
+	fclose(ft);
 	return err;
 }

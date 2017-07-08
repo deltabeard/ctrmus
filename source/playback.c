@@ -91,7 +91,7 @@ int getFileType(const char *file)
 			else if(isFlac(file) == 0)
 				file_type = FILE_TYPE_FLAC;
 			else if(isVorbis(file) == 0)
-				file_type = FILE_TYPE_OGG;
+				file_type = FILE_TYPE_VORBIS;
 			else
 			{
 				errno = FILE_NOT_SUPPORTED;
@@ -163,8 +163,9 @@ void playFile(void* infoIn)
 			setMp3(&decoder);
 			break;
 
-		case FILE_TYPE_OGG:
+		case FILE_TYPE_VORBIS:
 			setVorbis(&decoder);
+			break;
 
 		default:
 			goto err;
@@ -181,6 +182,12 @@ void playFile(void* infoIn)
 	if((ret = (*decoder.init)(file)) != 0)
 	{
 		errno = DECODER_INIT_FAIL;
+		goto err;
+	}
+
+	if((*decoder.channels)() > 2 || (*decoder.channels)() < 1)
+	{
+		errno = UNSUPPORTED_CHANNELS;
 		goto err;
 	}
 
