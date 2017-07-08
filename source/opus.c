@@ -76,7 +76,7 @@ uint8_t channelOpus(void)
  */
 uint64_t decodeOpus(void* buffer)
 {
-	return fillOpusBuffer(opusFile, buffer);
+	return fillOpusBuffer(buffer);
 }
 
 /**
@@ -90,11 +90,10 @@ void exitOpus(void)
 /**
  * Decode Opus file to fill buffer.
  *
- * \param opusFile		File to decode.
  * \param bufferOut		Pointer to buffer.
  * \return				Samples read per channel.
  */
-uint64_t fillOpusBuffer(OggOpusFile* opusFile, int16_t* bufferOut)
+uint64_t fillOpusBuffer(int16_t* bufferOut)
 {
 	uint64_t samplesRead = 0;
 	int samplesToRead = buffSize;
