@@ -52,7 +52,7 @@ void playbackWatchdog(void* infoIn)
 		svcWaitSynchronization(*info->errInfo->failEvent, U64_MAX);
 		svcClearEvent(*info->errInfo->failEvent);
 
-		if(*info->errInfo->error != 0)
+		if(*info->errInfo->error > 0)
 		{
 			consoleSelect(info->screen);
 			printf("Error %d: %s", *info->errInfo->error,
@@ -65,6 +65,14 @@ void playbackWatchdog(void* infoIn)
 			}
 
 			printf("\n");
+		}
+		else if (*info->errInfo->error == -1)
+		{
+			/* Used to signify that playback has stopped.
+			 * Not technically an error.
+			 */
+			consoleSelect(info->screen);
+			puts("Stopped");
 		}
 	}
 
@@ -391,8 +399,9 @@ int main(int argc, char **argv)
 			{
 				stopPlayback();
 				changeFile(NULL, &playbackInfo);
-				consoleSelect(&topScreen);
-				puts("Stopped");
+				/* If the playback thread is currently playing, it will now
+				 * stop and tell the Watchdog thread to display "Stopped".
+				 */
 				continue;
 			}
 		}

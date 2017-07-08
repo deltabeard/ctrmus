@@ -9,6 +9,7 @@
 #include "mp3.h"
 #include "opus.h"
 #include "playback.h"
+#include "vorbis.h"
 #include "wav.h"
 
 static volatile bool stop = true;
@@ -89,9 +90,10 @@ int getFileType(const char *file)
 				file_type = FILE_TYPE_OPUS;
 			else if(isFlac(file) == 0)
 				file_type = FILE_TYPE_FLAC;
+			else if(isVorbis(file) == 0)
+				file_type = FILE_TYPE_OGG;
 			else
 			{
-				//file_type = FILE_TYPE_OGG;
 				errno = FILE_NOT_SUPPORTED;
 			}
 
@@ -160,6 +162,9 @@ void playFile(void* infoIn)
 		case FILE_TYPE_MP3:
 			setMp3(&decoder);
 			break;
+
+		case FILE_TYPE_OGG:
+			setVorbis(&decoder);
 
 		default:
 			goto err;
@@ -263,6 +268,11 @@ out:
 	delete(info->file);
 	linearFree(buffer1);
 	linearFree(buffer2);
+
+	/* Signal Watchdog thread that we've stopped playing */
+	*info->errInfo->error = -1;
+	svcSignalEvent(*info->errInfo->failEvent);
+
 	threadExit(0);
 	return;
 
