@@ -1,9 +1,9 @@
 <h1 align="center"><img src="http://i.imgur.com/pWWyVMO.png" alt="ctrmus icon"><br>ctrmus</h1>
 <p align="center">A music player for the Nintendo 3DS</p>
-<p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="https://zxing.org/w/chart?cht=qr&chs=230x230&chld=L&choe=UTF-8&chl=https%3A%2F%2Fgithub.com%2Fdeltabeard%2Fctrmus%2Freleases%2Fdownload%2F0.4.11%2Fctrmus.cia">QR code</a>, or via titledb</p>
+<p align="center">Latest 3DSX/CIA/3DS download on <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, using <a href="https://zxing.org/w/chart?cht=qr&chs=230x230&chld=L&choe=UTF-8&chl=https%3A%2F%2Fgithub.com%2Fdeltabeard%2Fctrmus%2Freleases%2Fdownload%2F0.4.12%2Fctrmus.cia">QR code</a>, or via titledb</p>
 
 ### Features
-* Plays PCM WAV, AIFF, FLAC, Opus, MP3 files.
+* Plays PCM WAV, AIFF, FLAC, Opus, Vorbis and MP3 files.
 * Pause and play support.
 * Plays music via headphones whilst system is closed.
 * Ability to browse directories.
@@ -21,7 +21,7 @@ B: Go up folder
 
 Up & down = Move cursor
 
-Left & right = Move cursor skipping 13 files at a time. 
+Left & right = Move cursor skipping 13 files at a time.
 
 Start: Exit
 
@@ -29,8 +29,8 @@ Start: Exit
 Have a look at [CONTRIBUTING.md](https://github.com/deltabeard/ctrmus/blob/master/CONTRIBUTING.md) for some info and guidelines on contributing to the project.
 
 ### Planned features
-* FFMPEG support.
 * Playlist support.
+* FFMPEG support.
 * Repeat and shuffle support.
 * Metadata support.
 * Gain support.
