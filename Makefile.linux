@@ -29,6 +29,7 @@ ODIR=./build/$(HOST_ARCH)
 SDIR=./source
 
 _DEPS = all.h		\
+		file.h		\
 		flac.h		\
 		mp3.h		\
 		opus.h		\
@@ -37,7 +38,8 @@ _DEPS = all.h		\
 
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = flac.o		\
+_OBJ = file.o		\
+		flac.o		\
 		mp3.o		\
 		opus.o		\
 		test.o		\

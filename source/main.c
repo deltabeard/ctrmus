@@ -17,6 +17,7 @@
 
 #include "all.h"
 #include "error.h"
+#include "file.h"
 #include "main.h"
 #include "playback.h"
 

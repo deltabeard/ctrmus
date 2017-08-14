@@ -1,21 +1,28 @@
 #if defined __gnu_linux__
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
+#include "error.h"
+#include "file.h"
 #include "flac.h"
 #include "mp3.h"
 #include "opus.h"
 #include "playback.h"
 #include "vorbis.h"
 #include "wav.h"
-#include "playback.h"
 
 /**
  * Test the various decoder modules in ctrmus.
  */
 int main(int argc, char *argv[])
 {
-	struct decoder_fn decoder;
+	struct decoder_fn	decoder;
+	enum file_types		ft;
+	const char			*file = argv[1];
+	int16_t				*buffer = NULL;
+	FILE				*out;
 
 	if(argc != 2)
 	{
@@ -23,8 +30,8 @@ int main(int argc, char *argv[])
 		printf("%s FILE\n", argv[0]);
 		return 0;
 	}
-#if 0
-	switch(getFileType(argv[1]))
+
+	switch(ft = getFileType(file))
 	{
 		case FILE_TYPE_WAV:
 			setWav(&decoder);
@@ -47,9 +54,40 @@ int main(int argc, char *argv[])
 			break;
 
 		default:
+			puts("Unsupported file.");
 			goto err;
 	}
-#endif
+
+	printf("Type: %s\n", fileToStr(ft));
+
+	if((*decoder.init)(file) != 0)
+	{
+		puts("Unable to initialise decoder.");
+		goto err;
+	}
+
+	if((*decoder.channels)() > 2 || (*decoder.channels)() < 1)
+	{
+		puts("Unable to obtain number of channels.");
+		goto err;
+	}
+
+	out = fopen("out", "wb");
+	buffer = malloc(decoder.buffSize * sizeof(int16_t));
+
+	while(true)
+	{
+		size_t read = (*decoder.decode)(&buffer[0]);
+
+		if(read <= 0)
+			break;
+
+		fwrite(buffer, read * sizeof(int16_t), 1, out);
+	}
+
+	(*decoder.exit)();
+	free(buffer);
+	fclose(out);
 
 	return 0;
 
