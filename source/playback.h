@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #ifndef ctrmus_playback_h
 #define ctrmus_playback_h
 

@@ -1,4 +1,3 @@
-#include <3ds.h>
 #include <mpg123.h>
 #include <stdio.h>
 #include <stdlib.h>
