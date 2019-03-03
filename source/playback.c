@@ -12,6 +12,7 @@
 #include "playback.h"
 #include "vorbis.h"
 #include "wav.h"
+#include "sid.h"
 
 static volatile bool stop = true;
 
@@ -85,6 +86,10 @@ void playFile(void* infoIn)
 
 		case FILE_TYPE_VORBIS:
 			setVorbis(&decoder);
+			break;
+		
+		case FILE_TYPE_SID:
+			setSid(&decoder);
 			break;
 
 		default:

@@ -23,7 +23,7 @@ endif
 IDIR =./source
 CC=gcc
 CFLAGS=-I./include/
-LIBS=-lmpg123 -lvorbisidec -lopusfile -lopus -logg -lm
+LIBS=-lsidplay -lmpg123 -lvorbisidec -lopusfile -lopus -logg -lm
 
 ODIR=./build/$(HOST_ARCH)
 SDIR=./source
