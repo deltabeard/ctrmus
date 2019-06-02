@@ -108,6 +108,7 @@ uint64_t readSid(void* buffer)
  */
 void exitSid(void)
 {
-	if (myTune) {delete(myTune);}
+	if(myTune)
+		delete(myTune);
 	if (myEmuEngine) {delete(myEmuEngine);}
 }
