@@ -49,7 +49,8 @@ int initSid(const char* file)
 {
 	// init emuEngine
 	myEmuEngine = new emuEngine;
-	if ( !myEmuEngine ) return -1;
+	if ( !myEmuEngine )
+		return -1;
 
 	//configure emuEngine
 	struct emuConfig myEmuConfig;
@@ -62,10 +63,12 @@ int initSid(const char* file)
 
 	// load the SID file
 	myTune=new sidTune ( file );
-	if ( !myTune ) return -1;
+	if ( !myTune )
+		return -1;
 
 	// init emuEngine with sidTune
-	if ( !sidEmuInitializeSong(*myEmuEngine,*myTune,selectedSong) ) return -1;
+	if ( !sidEmuInitializeSong(*myEmuEngine,*myTune,selectedSong) )
+		return -1;
 
 	return 0;
 }
@@ -99,7 +102,8 @@ uint8_t channelSid(void)
 uint64_t readSid(void* buffer)
 {
 	sidEmuFillBuffer( *myEmuEngine, *myTune, buffer, buffSize*bitsPerSample/8 );
-	if (myTune->getStatus()) return buffSize;
+	if (myTune->getStatus())
+		return buffSize;
 	return 0;
 }
 
@@ -109,6 +113,11 @@ uint64_t readSid(void* buffer)
 void exitSid(void)
 {
 	if(myTune)
+	{
 		delete(myTune);
-	if (myEmuEngine) {delete(myEmuEngine);}
+	}
+	if (myEmuEngine)
+	{
+		delete(myEmuEngine);
+	}
 }
