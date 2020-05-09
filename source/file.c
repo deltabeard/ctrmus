@@ -9,6 +9,7 @@
 #include "opus.h"
 #include "vorbis.h"
 #include "wav.h"
+#include "sid.h"
 
 /**
  * Obtain file type string from file_types enum.
@@ -24,7 +25,8 @@ const char* fileToStr(enum file_types ft)
 		"FLAC",
 		"VORBIS",
 		"OPUS",
-		"MP3"
+		"MP3",
+		"SID"
 	};
 
 	return file_types_str[ft];
@@ -83,6 +85,12 @@ enum file_types getFileType(const char *file)
 			else
 				errno = FILE_NOT_SUPPORTED;
 
+			break;
+		
+		// "PSID" or "RSID"
+		case 0x44495350:
+		case 0x44495352:
+			file_type=FILE_TYPE_SID;
 			break;
 
 		default:

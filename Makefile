@@ -49,7 +49,7 @@ SOURCE_DIRS := source
 EXTRA_OUTPUT_FILES :=
 
 LIBRARY_DIRS := $(DEVKITPRO)/libctru $(DEVKITPRO)/portlibs/armv6k $(DEVKITPRO)/portlibs/3ds
-LIBRARIES := mpg123 vorbisidec opusfile opus ogg ctru m
+LIBRARIES := sidplay mpg123 vorbisidec opusfile opus ogg ctru m
 
 BUILD_FLAGS := -Wall -Wextra -I$(DEVKITPRO)/portlibs/armv6k/include/opus -I$(DEVKITPRO)/portlibs/3ds/include/opus 
 RUN_FLAGS :=
