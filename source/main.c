@@ -300,7 +300,6 @@ int main(int argc, char **argv)
 	struct dirList_t	dirList = {NULL, 0, NULL, 0, NULL};
 
 	gfxInitDefault();
-	sdmcInit();
 	consoleInit(GFX_TOP, &topScreen);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 	consoleSelect(&bottomScreen);
@@ -533,7 +532,6 @@ out:
 	changeFile(NULL, &playbackInfo);
 
 	gfxExit();
-	sdmcExit();
 	return 0;
 
 err:
