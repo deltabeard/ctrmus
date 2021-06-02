@@ -1,6 +1,0 @@
-[submodule "include/dr_libs"]
-	path = include/dr_libs
-	url = https://github.com/mackron/dr_libs.git
-[submodule "buildtools"]
-	path = buildtools
-	url = https://github.com/Steveice10/buildtools.git
