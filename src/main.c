@@ -569,12 +569,7 @@ static void recreate_filepicker(void *p)
 
 static void create_top_ui(struct ui_ctx *ui)
 {
-	const char *lorem_ipsum = "بنی‌آدم اعضای یک پیکرند\n"
-		"که در آفرينش ز یک گوهرند\n"
-		"چو عضوى به‌درد آورَد روزگار\n"
-		"دگر عضوها را نمانَد قرار\n"
-		"تو کز محنت دیگران بی‌غمی\n"
-		"نشاید که نامت نهند آدمی\n";
+	const char *lorem_ipsum = "Playback information will appear here.";
 	lv_obj_t *label1, *top_cont;
 	lv_coord_t ver, hor;
 
