@@ -493,12 +493,18 @@ static void recreate_filepicker(void *p)
 
 		/* Ignore "current directory" file. */
 		if (strcmp(c->namelist[c->entries_added]->d_name, ".") == 0)
+		{
+			free(c->namelist[c->entries_added]);
 			continue;
+		}
 
 		/* Ignore "up directory" file, since the 3DS does not generate
 		 * this automatically. */
 		if (strcmp(c->namelist[c->entries_added]->d_name, "..") == 0)
+		{
+			free(c->namelist[c->entries_added]);
 			continue;
+		}
 
 		if (c->namelist[c->entries_added]->d_type == DT_DIR)
 		{
@@ -569,6 +575,7 @@ static void recreate_filepicker(void *p)
 	}
 
 	free(c->namelist);
+	free(c);
 }
 
 static void create_top_ui(struct ui_ctx *ui)

@@ -22,12 +22,13 @@ struct playback_ctx {
 	playback_status_e stat;
 
 	struct playlist_entry *first_entry;
+	struct playlist_entry *last_entry;
 	struct playlist_entry *playing_entry;
 };
 
 playback_ctx_s *playback_init(void)
 {
-	return calloc(1, sizeof(playback_ctx_s *));
+	return calloc(1, sizeof(playback_ctx_s));
 }
 
 playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name)
@@ -35,38 +36,42 @@ playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name)
 	unsigned array_entries;
 	size_t file_name_sz;
 	char *f;
-	struct playlist_entry *last_entry;
+	struct playlist_entry *new_entry = NULL;
 	
 	if(file_name == NULL)
 		goto out;
 
-	last_entry = ctx->first_entry;
-	while(last_entry != NULL)
-		last_entry = last_entry->next;
-
-	last_entry = malloc(sizeof(struct playlist_entry));
-	if(last_entry == NULL)
+	new_entry = malloc(sizeof(struct playlist_entry));
+	if(new_entry == NULL)
 		goto out;
 	
 	file_name_sz = strlen(file_name);
 	/* convert relative file to absolute. */
-	last_entry->file_name = malloc(file_name_sz);
-	if(f == NULL)
+	new_entry->file_name = malloc(file_name_sz);
+	if(new_entry->file_name == NULL)
 	{
-		free(last_entry);
-		last_entry = NULL;
+		free(new_entry);
+		new_entry = NULL;
 		goto out;
 	}
 	
-	strcpy(f, file_name);
-	
+	strcpy(new_entry->file_name, file_name);
+	new_entry->prev = ctx->last_entry;
+	new_entry->next = NULL;
+
+	ctx->last_entry->next = new_entry;
+	ctx->last_entry = new_entry;
+
 out:
-	return last_entry;
+	return new_entry;
 }
 
 void playback_remove_all(playback_ctx_s *ctx)
 {
 	struct playlist_entry *entry = ctx->first_entry;
+
+	if(entry == NULL)
+		return;
 
 	while(entry != NULL)
 	{
@@ -78,6 +83,7 @@ void playback_remove_all(playback_ctx_s *ctx)
 		entry = next;
 	}
 
+	ctx->last_entry = NULL;
 	ctx->playing_entry = NULL;
 	ctx->stat = PLAYBACK_STAT_PAUSED;
 	return;
@@ -85,12 +91,14 @@ void playback_remove_all(playback_ctx_s *ctx)
 
 void playback_remove_entry(playback_ctx_s *ctx, playlist_entry_s *entry)
 {
-	entry->prev->next = entry->next;
+	if(ctx->last_entry == entry)
+		ctx->last_entry = entry->prev;
+
+	if(entry->prev != NULL)
+		entry->prev->next = entry->next;
 
 	if(ctx->playing_entry == entry)
-	{
 		ctx->stat = PLAYBACK_STAT_PAUSED;
-	}
 
 	free(entry->file_name);
 	free(entry);
