@@ -9,31 +9,32 @@
 #pragma once
 
 typedef struct playback_ctx playback_ctx_s;
+typedef struct playlist_entry playlist_entry_s;
 
 typedef enum {
-	PLAYBACK_CTRL_PLAY,
-	PLAYBACK_CTRL_PAUSE
+	PLAYBACK_CTRL_PAUSE = 0,
+	PLAYBACK_CTRL_PLAY
 } playback_control_e;
 
 typedef enum {
-	PLAYBACK_CTRL_PLAYING,
-	PLAYBACK_CTRL_PAUSED
+	PLAYBACK_STAT_PAUSED = 0,
+	PLAYBACK_STAT_PLAYING
 } playback_status_e;
 
 /* Initialise playback context. */
 playback_ctx_s *playback_init(void);
 
 /* Add file to playlist. file_name must be an absolute file path. */
-int playback_add_file(playback_ctx_s *ctx, const char *file_name);
+playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name);
 
 /* Remove file from playlist with given file name. */
-int playback_remove_entry(playback_ctx_s *ctx, int entry);
+void playback_remove_entry(playback_ctx_s *ctx, playlist_entry_s *entry);
 
-/* Return an array of file names that are within the playlist. */
-const char *playback_get_list(playback_ctx_s *ctx, int *entries);
+/* Remove all files from playlist. */
+void playback_remove_all(playback_ctx_s *ctx);
 
 /* Select file from playback to play. */
-int playback_select_file(playback_ctx_s *ctx, int entry);
+void playback_play_file(playback_ctx_s *ctx, playlist_entry_s *entry);
 
 /* Control playback. */
 int playback_control(playback_ctx_s *ctx, playback_control_e ctrl);

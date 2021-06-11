@@ -21,16 +21,17 @@
 # include <unistd.h>
 #endif
 
-#include <noto_sans_14_common.h>
-
 #include <ctype.h>
 #include <errno.h>
-#include <lvgl.h>
-#include <platform.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <noto_sans_14_common.h>
+#include <lvgl.h>
+#include <platform.h>
+#include <playback.h>
 
 #define BUF_PX_SIZE (GSP_SCREEN_WIDTH_TOP * 64)
 
@@ -43,6 +44,9 @@ struct ui_ctx {
 
 	/* LVGL function mutex. */
 	platform_mutex_s *lv_mutex;
+
+	/* Playback context. */
+	playback_ctx_s *pbk;
 
 	/* File list used in file browser. */
 	lv_obj_t *filelist;
@@ -700,7 +704,7 @@ static void print_cb(lv_log_level_t level, const char *file, uint32_t line,
 
 int main(int argc, char *argv[])
 {
-	platform_ctx_s *ctx;
+	platform_ctx_s *plat;
 	struct ui_ctx ui = { 0 };
 	int ret = EXIT_FAILURE;
 	lv_disp_buf_t lv_disp_buf_top, lv_disp_buf_bot;
@@ -711,8 +715,8 @@ int main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	ctx = init_system();
-	if (ctx == NULL)
+	plat = init_system();
+	if (plat == NULL)
 		goto err;
 
 	/* Initialise LVGL. */
@@ -727,7 +731,7 @@ int main(int argc, char *argv[])
 	lv_disp_drv_init(&lv_disp_drv_top);
 	lv_disp_drv_top.buffer = &lv_disp_buf_top;
 	lv_disp_drv_top.flush_cb = flush_top_cb;
-	lv_disp_drv_top.user_data = ctx;
+	lv_disp_drv_top.user_data = plat;
 #ifdef __3DS__
 	lv_disp_drv_top.rotated = LV_DISP_ROT_270;
 	lv_disp_drv_top.sw_rotate = 1;
@@ -744,7 +748,7 @@ int main(int argc, char *argv[])
 	lv_disp_drv_init(&lv_disp_drv_bot);
 	lv_disp_drv_bot.buffer = &lv_disp_buf_bot;
 	lv_disp_drv_bot.flush_cb = flush_bot_cb;
-	lv_disp_drv_bot.user_data = ctx;
+	lv_disp_drv_bot.user_data = plat;
 #ifdef __3DS__
 	lv_disp_drv_bot.rotated = LV_DISP_ROT_270;
 	lv_disp_drv_bot.sw_rotate = 1;
@@ -767,7 +771,7 @@ int main(int argc, char *argv[])
 	lv_indev_drv_init(&indev_drv);
 	indev_drv.type = LV_INDEV_TYPE_POINTER;
 	indev_drv.read_cb = read_pointer;
-	indev_drv.user_data = ctx;
+	indev_drv.user_data = plat;
 	lv_indev_drv_register(&indev_drv);
 
 	ui.lv_mutex = platform_create_mutex();
@@ -777,17 +781,23 @@ int main(int argc, char *argv[])
 	create_top_ui(&ui);
 	create_bottom_ui(&ui);
 
-	while (exit_requested(ctx) == 0 && quit == false)
+	ui.pbk = playback_init();
+	/* TODO: Return an error message instead of exiting. */
+	if(ui.pbk == NULL)
+		goto err;
+
+	while (exit_requested(plat) == 0 && quit == false)
 	{
 		if (platform_atomic_get(&ui.filelist_finished) == FP_POPFIN_YES)
 			lv_obj_set_hidden(ui.fileloadspinner, true);
 
-		handle_events(ctx);
+		handle_events(plat);
 		lv_task_handler();
-		render_present(ctx);
+		render_present(plat);
 	}
 
-	exit_system(ctx);
+	exit_system(plat);
+	playback_exit(ui.pbk);
 
 	ret = EXIT_SUCCESS;
 

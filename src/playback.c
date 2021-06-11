@@ -8,79 +8,119 @@
 
 #include <platform.h>
 #include <playback.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct playlist_entry
+{
+	char *file_name;
+	struct playlist_entry *next;
+	struct playlist_entry *prev;
+};
 
 struct playback_ctx {
-	platform_mutex_s *mtx;
-	
-	struct playlist {
-		char **file_names;
-		unsigned entries;
-	} playing_playlist;
+	playback_status_e stat;
+
+	struct playlist_entry *first_entry;
+	struct playlist_entry *playing_entry;
 };
 
 playback_ctx_s *playback_init(void)
 {
-	playback_ctx_s *ctx = calloc(1, sizeof(playback_ctx_s));
-	ctx->mtx = platform_create_mutex();
-	return ctx;
+	return calloc(1, sizeof(playback_ctx_s *));
 }
 
-int playback_add_file(playback_ctx_s *ctx, const char *file_name)
+playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name)
 {
-	int ret = -1;
 	unsigned array_entries;
 	size_t file_name_sz;
 	char *f;
+	struct playlist_entry *last_entry;
 	
 	if(file_name == NULL)
+		goto out;
+
+	last_entry = ctx->first_entry;
+	while(last_entry != NULL)
+		last_entry = last_entry->next;
+
+	last_entry = malloc(sizeof(struct playlist_entry));
+	if(last_entry == NULL)
 		goto out;
 	
 	file_name_sz = strlen(file_name);
 	/* convert relative file to absolute. */
-	f = malloc(file_name_sz);
+	last_entry->file_name = malloc(file_name_sz);
 	if(f == NULL)
+	{
+		free(last_entry);
+		last_entry = NULL;
 		goto out;
+	}
 	
 	strcpy(f, file_name);
 	
-	ctx->playing_playlist.entries++;
-	{
-		char **file_names = realloc(ctx->playing_playlist.file_names,
-			sizeof(char **) * ctx->playing_playlist.entries);
-			
-		if(file_names == NULL)
-		{
-			ctx->playing_playlist.entries--;
-			free(f);
-			goto out;
-		}
-		
-		ctx->playing_playlist.file_names = file_names;
-	}
-	
-	ctx->playing_playlist.file_names[ctx->playing_playlist.entries] = f;
-	
-	ret = ctx->playing_playlist.entries;
-	
 out:
-	goto ret;
+	return last_entry;
 }
 
-int playback_remove_file(playback_ctx_s *ctx, int entry);
-
-const char *playback_get_list(playback_ctx_s *ctx, int *entries);
-
-int playback_select_file(playback_ctx_s *ctx, const char *file_name);
-
-int playback_control(playback_ctx_s *ctx, playback_control_e ctrl);
-
-playback_status_e playback_get_status(playback_ctx_s *ctx);
-
-void playback_exit(playback_ctx_s *ctx);
+void playback_remove_all(playback_ctx_s *ctx)
 {
-	for(int i = 0; i < ctx->playing_playlist.entries; i++)
-		free(ctx->playlist_playlist.file_names[i]);
-	
+	struct playlist_entry *entry = ctx->first_entry;
+
+	while(entry != NULL)
+	{
+		struct playlist_entry *next = entry->next;
+
+		free(entry->file_name);
+		free(entry);
+
+		entry = next;
+	}
+
+	ctx->playing_entry = NULL;
+	ctx->stat = PLAYBACK_STAT_PAUSED;
+	return;
+}
+
+void playback_remove_entry(playback_ctx_s *ctx, playlist_entry_s *entry)
+{
+	entry->prev->next = entry->next;
+
+	if(ctx->playing_entry == entry)
+	{
+		ctx->stat = PLAYBACK_STAT_PAUSED;
+	}
+
+	free(entry->file_name);
+	free(entry);
+	return;
+}
+
+void playback_play_file(playback_ctx_s *ctx, playlist_entry_s *entry)
+{
+	ctx->playing_entry = entry;
+
+
+	// TODO: Play file.
+	return;
+}
+
+int playback_control(playback_ctx_s *ctx, playback_control_e ctrl)
+{
+	// TODO: Actually perform control here.
+	ctx->stat = (playback_status_e)ctrl;
+	return 0;
+}
+
+playback_status_e playback_get_status(playback_ctx_s *ctx)
+{
+	return ctx->stat;
+}
+
+void playback_exit(playback_ctx_s *ctx)
+{
+	playback_remove_all(ctx);
 	free(ctx);
 	return;
 }
