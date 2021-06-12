@@ -14,6 +14,7 @@
 struct playlist_entry
 {
 	char *file_name;
+	FILE *f;
 	struct playlist_entry *next;
 	struct playlist_entry *prev;
 };
@@ -35,16 +36,21 @@ playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name)
 {
 	unsigned array_entries;
 	size_t file_name_sz;
-	char *f;
 	struct playlist_entry *new_entry = NULL;
+	FILE *f;
 	
 	if(file_name == NULL)
+		goto out;
+
+	f = fopen(file_name, "rb");
+	if(f == NULL)
 		goto out;
 
 	new_entry = malloc(sizeof(struct playlist_entry));
 	if(new_entry == NULL)
 		goto out;
-	
+
+	new_entry->f = f;
 	file_name_sz = strlen(file_name);
 	/* convert relative file to absolute. */
 	new_entry->file_name = malloc(file_name_sz);
@@ -59,7 +65,9 @@ playlist_entry_s *playback_add_file(playback_ctx_s *ctx, const char *file_name)
 	new_entry->prev = ctx->last_entry;
 	new_entry->next = NULL;
 
-	ctx->last_entry->next = new_entry;
+	if(ctx->last_entry != NULL)
+		ctx->last_entry->next = new_entry;
+
 	ctx->last_entry = new_entry;
 
 out:
@@ -77,6 +85,7 @@ void playback_remove_all(playback_ctx_s *ctx)
 	{
 		struct playlist_entry *next = entry->next;
 
+		fclose(entry->f);
 		free(entry->file_name);
 		free(entry);
 
@@ -100,6 +109,7 @@ void playback_remove_entry(playback_ctx_s *ctx, playlist_entry_s *entry)
 	if(ctx->playing_entry == entry)
 		ctx->stat = PLAYBACK_STAT_PAUSED;
 
+	fclose(entry->f);
 	free(entry->file_name);
 	free(entry);
 	return;

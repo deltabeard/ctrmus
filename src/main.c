@@ -52,6 +52,8 @@ struct ui_ctx {
 	lv_obj_t *filelist;
 	/* Spinner showing load progress of file browser. */
 	lv_obj_t *fileloadspinner;
+	/* Toggle for adding file to playlist or playing selected file. */
+	lv_obj_t *fileaddbtn;
 
 	/* File list population synchronisation. */
 	platform_atomic_s filelist_populating;
@@ -61,6 +63,8 @@ struct ui_ctx {
 #define FP_POPFIN_NO  0
 #define FP_POPFIN_YES 1
 
+	/* Playlist used in playlist tab. */
+	lv_obj_t *playlist;
 };
 
 /* Context for file picker poulation thread. */
@@ -152,8 +156,56 @@ static void show_error_msg(const char *msg, lv_disp_t *disp)
 	lv_obj_set_state(mbox1, LV_STATE_DISABLED);
 }
 
+static void btnev_nop(lv_obj_t *btn, lv_event_t event)
+{
+	return;
+}
+
 static void btnev_file(lv_obj_t *btn, lv_event_t event)
 {
+	struct ui_ctx *ui;
+	lv_obj_t *label;
+	char *filename;
+
+	/* Only perform an action with the file is the button was clicked. */
+	if (event != LV_EVENT_CLICKED)
+		return;
+
+	ui = lv_obj_get_user_data(btn);
+	label = lv_obj_get_child(btn, NULL);
+	filename = lv_label_get_text(label);
+
+	if(lv_btn_get_state(ui->fileaddbtn) == LV_BTN_STATE_CHECKED_RELEASED)
+	{
+		/* Add file to playlist. */
+		playlist_entry_s *entry;
+		lv_obj_t *file_btn, *file_lbl;
+		lv_obj_t *scrl;
+		lv_coord_t w;
+
+		scrl = lv_page_get_scrollable(ui->playlist);
+		w = lv_obj_get_width(scrl);
+
+		/* TODO: Add ui context to entry. */
+		entry = playback_add_file(ui->pbk, filename);
+		file_btn = lv_btn_create(ui->playlist, NULL);
+		lv_page_glue_obj(file_btn, true);
+		lv_btn_set_layout(file_btn, LV_LAYOUT_ROW_MID);
+		lv_obj_set_width(file_btn, w);
+
+		file_lbl = lv_label_create(file_btn, NULL);
+		lv_label_set_text(file_lbl, filename);
+		lv_label_set_long_mode(label, LV_LABEL_LONG_CROP);
+		lv_obj_set_click(file_lbl, false);
+
+		lv_obj_set_user_data(file_btn, entry);
+		lv_theme_apply(file_btn, LV_THEME_LIST_BTN);
+
+		return;
+	}
+
+	/* Play file (fileaddbtn is unchecked). */
+
 	return;
 }
 
@@ -259,7 +311,7 @@ static int filepicker_add_entries(void *p)
 	while (c->entries_added < c->entries &&
 	       platform_atomic_get(&ui->filelist_populating) == FP_POP_YES)
 	{
-		lv_event_cb_t event_cb = btnev_file;
+		lv_event_cb_t event_cb = NULL;
 		lv_anim_value_t deg;
 		const char *symbol = LV_SYMBOL_FILE;
 		mutex_stat_e mtx_stat;
@@ -303,6 +355,7 @@ static int filepicker_add_entries(void *p)
 					continue;
 
 				symbol = LV_SYMBOL_AUDIO;
+				event_cb = btnev_file;
 				break;
 			}
 		}
@@ -529,6 +582,7 @@ static void recreate_filepicker(void *p)
 					continue;
 
 				symbol = LV_SYMBOL_AUDIO;
+				event_cb = btnev_file;
 				break;
 			}
 		}
@@ -648,19 +702,13 @@ static void create_bottom_ui(struct ui_ctx *ui)
 			lv_obj_set_event_cb(btn, btnev_updir);
 			lv_obj_set_user_data(btn, ui);
 
-			btn = lv_btn_create(toolbar, NULL);
-			btn_lbl = lv_label_create(btn, NULL);
+			ui->fileaddbtn = lv_btn_create(toolbar, NULL);
+			btn_lbl = lv_label_create(ui->fileaddbtn, NULL);
 			lv_label_set_text(btn_lbl, LV_SYMBOL_PLUS);
-			lv_obj_set_size(btn, toolbar_h, toolbar_h);
+			lv_obj_set_size(ui->fileaddbtn, toolbar_h, toolbar_h);
 			//lv_obj_set_event_cb(btn, btnev_updir);
-			lv_obj_set_user_data(btn, ui);
-
-			btn = lv_btn_create(toolbar, NULL);
-			btn_lbl = lv_label_create(btn, NULL);
-			lv_label_set_text(btn_lbl, LV_SYMBOL_PLAY);
-			lv_obj_set_size(btn, toolbar_h, toolbar_h);
-			//lv_obj_set_event_cb(btn, btnev_updir);
-			lv_obj_set_user_data(btn, ui);
+			lv_btn_set_checkable(ui->fileaddbtn, true);
+			lv_obj_set_user_data(ui->fileaddbtn, ui);
 
 			ui->fileloadspinner = lv_spinner_create(toolbar, NULL);
 			lv_obj_set_hidden(ui->fileloadspinner, true);
@@ -683,6 +731,58 @@ static void create_bottom_ui(struct ui_ctx *ui)
 		/* Store target display in user data for the file list. */
 		lv_obj_set_user_data(ui->filelist, ui);
 		lv_async_call(recreate_filepicker, ui);
+	}
+
+	/* Populate playlist tab. */
+	{
+		lv_coord_t cw = lv_obj_get_width(tab_playlist);
+		lv_coord_t ch = lv_obj_get_height(tab_playlist);
+
+		ui->playlist = lv_page_create(tab_playlist, NULL);
+		lv_obj_set_size(ui->playlist, cw, ch);
+		lv_theme_apply(ui->playlist, LV_THEME_LIST);
+		lv_page_set_scrl_layout(ui->playlist, LV_LAYOUT_COLUMN_MID);
+		lv_page_set_scrollbar_mode(ui->playlist,
+			LV_SCROLLBAR_MODE_AUTO);
+		lv_obj_set_user_data(ui->playlist, ui);
+	}
+
+	/* Populate playlist control tab. */
+	{
+		lv_obj_t *prev, *next;
+		lv_obj_t *play;
+		lv_obj_t *lbl;
+		lv_obj_t *scrl;
+
+		scrl = lv_page_get_scrollable(tab_control);
+		lv_cont_set_layout(scrl, LV_LAYOUT_ROW_MID);
+
+		prev = lv_btn_create(scrl, NULL);
+		lbl = lv_label_create(prev, NULL);
+		lv_label_set_text(lbl, LV_SYMBOL_PREV);
+		lv_obj_set_event_cb(prev, btnev_nop);
+		lv_obj_set_user_data(prev, ui);
+
+		play = lv_btn_create(scrl, NULL);
+		lbl = lv_label_create(play, NULL);
+		lv_label_set_text(lbl, LV_SYMBOL_PLAY);
+		lv_obj_set_event_cb(play, btnev_nop);
+		lv_obj_set_user_data(play, ui);
+
+		next = lv_btn_create(scrl, NULL);
+		lbl = lv_label_create(next, NULL);
+		lv_label_set_text(lbl, LV_SYMBOL_NEXT);
+		lv_obj_set_event_cb(next, btnev_nop);
+		lv_obj_set_user_data(next, ui);
+	}
+
+	/* Populate settings tab. */
+	{
+		lv_obj_t *text;
+		static const char *str = "There are no settings available to "
+					 "configure.";
+		text = lv_label_create(tab_settings, NULL);
+		lv_label_set_text_static(text, str);
 	}
 
 	/* Populate system tab. */
