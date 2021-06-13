@@ -781,8 +781,11 @@ static void create_bottom_ui(struct ui_ctx *ui)
 		lv_obj_t *text;
 		static const char *str = "There are no settings available to "
 					 "configure.";
+
 		text = lv_label_create(tab_settings, NULL);
 		lv_label_set_text_static(text, str);
+		lv_obj_align_mid(text, tab_settings, LV_ALIGN_CENTER,
+			0, 0);
 	}
 
 	/* Populate system tab. */
