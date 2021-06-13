@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include <stdio.h>
 
 /* 3DS screens are portrait, so framebuffer must be rotated by 90 degrees. */
 #ifndef GSP_SCREEN_WIDTH_TOP
@@ -47,6 +48,7 @@ typedef enum
  * \returns Opaque pointer to platform context, or NULL on error.
  */
 platform_ctx_s *init_system(void);
+
 void handle_events(platform_ctx_s *ctx);
 void render_present(platform_ctx_s *ctx);
 void flush_top_cb(struct _disp_drv_t *disp_drv, const lv_area_t *area,
@@ -74,6 +76,19 @@ void platform_unlock_mutex(platform_mutex_s *mutex);
 int platform_atomic_get(platform_atomic_s *atomic);
 void platform_atomic_set(platform_atomic_s *atomic, int val);
 
+/* Misc. functions. */
 void platform_usleep(unsigned ms);
-
 uint64_t platform_get_ticks(void);
+
+/* Audio functions. */
+/* Play audio file. Returns 0 on success. */
+int platform_audio_play_file(platform_ctx_s *ctx, FILE *f);
+void platform_audio_pause(platform_ctx_s *ctx);
+void platform_audio_play(platform_ctx_s *ctx);
+
+typedef enum {
+	AUDIO_PLAYING,
+	AUDIO_PAUSED,
+	AUDIO_STOPPED /* Finished playing file. */
+} audio_status_e;
+audio_status_e platform_audio_get_status(platform_ctx_s *ctx);
