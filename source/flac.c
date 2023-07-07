@@ -30,7 +30,7 @@ void setFlac(struct decoder_fn* decoder)
  */
 int initFlac(const char* file)
 {
-	pFlac = drflac_open_file(file);
+	pFlac = drflac_open_file(file, NULL);
 
 	return pFlac == NULL ? -1 : 0;
 }
@@ -63,7 +63,13 @@ uint8_t channelFlac(void)
  */
 uint64_t decodeFlac(void* buffer)
 {
-	return drflac_read_s16(pFlac, buffSize, buffer);
+	size_t buffSizeFrames;
+	uint64_t samplesRead;
+
+	buffSizeFrames = buffSize / (size_t)pFlac->channels;
+	samplesRead = drflac_read_pcm_frames_s16(pFlac, buffSizeFrames, buffer);
+	samplesRead *= (uint64_t)pFlac->channels;
+	return samplesRead;
 }
 
 /**
@@ -83,7 +89,7 @@ void exitFlac(void)
 int isFlac(const char* in)
 {
 	int err = -1;
-	drflac* pFlac = drflac_open_file(in);
+	drflac* pFlac = drflac_open_file(in, NULL);
 
 	if(pFlac != NULL)
 		err = 0;
