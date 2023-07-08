@@ -55,17 +55,14 @@ enum file_types getFileType(const char *file)
 	{
 		// "RIFF"
 		case 0x46464952:
-			if(fseek(ftest, 4, SEEK_CUR) != 0)
-				break;
-
-			// "WAVE"
-			// Check required as AVI file format also uses "RIFF".
-			if(fread(&fileSig, 4, 1, ftest) == 0)
-				break;
-
-			if(fileSig != 0x45564157)
-				break;
-
+		// "riff"
+		case 0x66666972:
+		// "RIFX"
+		case 0x58464952:
+		// "RF64"
+		case 0x34364652:
+		// "FORM"
+		case 0x4D524F46:
 			file_type = FILE_TYPE_WAV;
 			break;
 
