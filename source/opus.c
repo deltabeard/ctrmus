@@ -14,6 +14,7 @@ static uint8_t channelOpus(void);
 static uint64_t decodeOpus(void* buffer);
 static void exitOpus(void);
 static uint64_t fillOpusBuffer(int16_t* bufferOut);
+static size_t getFileSamplesOpus(void);
 
 /**
  * Set decoder parameters for Opus.
@@ -28,6 +29,17 @@ void setOpus(struct decoder_fn* decoder)
 	decoder->buffSize = buffSize;
 	decoder->decode = &decodeOpus;
 	decoder->exit = &exitOpus;
+	decoder->getFileSamples = &getFileSamplesOpus;
+}
+
+static size_t getFileSamplesOpus(void)
+{
+	ogg_int64_t len = op_pcm_total(opusFile, -1);
+
+	if(len == OP_EINVAL)
+		return 0;
+
+	return len * (size_t)channelOpus();
 }
 
 /**

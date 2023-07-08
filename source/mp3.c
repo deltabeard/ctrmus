@@ -16,6 +16,7 @@ static uint32_t rateMp3(void);
 static uint8_t channelMp3(void);
 static uint64_t decodeMp3(void* buffer);
 static void exitMp3(void);
+static size_t getFileSamplesMp3(void);
 
 /**
  * Set decoder parameters for MP3.
@@ -34,6 +35,16 @@ void setMp3(struct decoder_fn* decoder)
 	buffSize = &(decoder->buffSize);
 	decoder->decode = &decodeMp3;
 	decoder->exit = &exitMp3;
+	decoder->getFileSamples = &getFileSamplesMp3;
+}
+
+static size_t getFileSamplesMp3(void)
+{
+	off_t len = mpg123_length(mh);
+	if(len == MPG123_ERR)
+		return 0;
+	
+	return len * (size_t)channels;
 }
 
 /**

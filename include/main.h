@@ -36,15 +36,6 @@ struct dirList_t
 };
 
 /**
- * Allows the playback thread to return any error messages that it may
- * encounter.
- *
- * \param	infoIn	Struct containing addresses of the event, the error code,
- *					and an optional error string.
- */
-void playbackWatchdog(void* infoIn);
-
-/**
  * Get number of files in current working folder
  *
  * \return	Number of files in current working folder, -1 on failure with

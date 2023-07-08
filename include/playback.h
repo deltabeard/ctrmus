@@ -43,12 +43,23 @@ struct decoder_fn
 	 * Free codec resources.
 	 */
 	void (* exit)(void);
+
+	/**
+	 * Optional. Set to NULL if unavailable.
+	 * Get number of samples in audio file.
+	 */
+	size_t (* getFileSamples)(void);
 };
 
 struct playbackInfo_t
 {
-	char*			file;
-	struct errInfo_t*	errInfo;
+	char *file;
+	struct errInfo_t *errInfo;
+
+	/* If 0, then the duration of file is unavailable. */
+	size_t samples_total;
+	size_t samples_played;
+	size_t samples_per_second;
 };
 
 /**

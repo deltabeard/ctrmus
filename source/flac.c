@@ -12,6 +12,7 @@ static uint32_t rateFlac(void);
 static uint8_t channelFlac(void);
 static uint64_t decodeFlac(void* buffer);
 static void exitFlac(void);
+static size_t getFileSamplesFlac(void);
 
 /**
  * Set decoder parameters for flac.
@@ -26,6 +27,7 @@ void setFlac(struct decoder_fn* decoder)
 	decoder->buffSize = buffSize;
 	decoder->decode = &decodeFlac;
 	decoder->exit = &exitFlac;
+	decoder->getFileSamples = &getFileSamplesFlac;
 }
 
 /**
@@ -34,11 +36,16 @@ void setFlac(struct decoder_fn* decoder)
  * \param	file	Location of flac file to play.
  * \return			0 on success, else failure.
  */
-int initFlac(const char* file)
+static int initFlac(const char* file)
 {
 	pFlac = drflac_open_file(file, NULL);
 
 	return pFlac == NULL ? -1 : 0;
+}
+
+static size_t getFileSamplesFlac(void)
+{
+	return pFlac->totalPCMFrameCount * (size_t)pFlac->channels;
 }
 
 /**
@@ -46,7 +53,7 @@ int initFlac(const char* file)
  *
  * \return	Sampling rate.
  */
-uint32_t rateFlac(void)
+static uint32_t rateFlac(void)
 {
 	return pFlac->sampleRate;
 }
@@ -56,7 +63,7 @@ uint32_t rateFlac(void)
  *
  * \return	Number of channels for opened file.
  */
-uint8_t channelFlac(void)
+static uint8_t channelFlac(void)
 {
 	return pFlac->channels;
 }
@@ -67,7 +74,7 @@ uint8_t channelFlac(void)
  * \param buffer	Decoded output.
  * \return			Samples read for each channel.
  */
-uint64_t decodeFlac(void* buffer)
+static uint64_t decodeFlac(void* buffer)
 {
 	size_t buffSizeFrames;
 	uint64_t samplesRead;
@@ -81,7 +88,7 @@ uint64_t decodeFlac(void* buffer)
 /**
  * Free Flac decoder.
  */
-void exitFlac(void)
+static void exitFlac(void)
 {
 	drflac_close(pFlac);
 }

@@ -119,6 +119,10 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 	playbackInfo->file = strdup(ep_file);
 	printf("Playing: %s\n", playbackInfo->file);
 
+	playbackInfo->samples_total = 0;
+	playbackInfo->samples_played = 0;
+	playbackInfo->samples_per_second = 0;
+
 	svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 	thread = threadCreate(playFile, playbackInfo, 32 * 1024, prio - 1, -2, false);
 
@@ -286,22 +290,27 @@ err:
 
 int main(int argc, char **argv)
 {
-	PrintConsole	topScreen;
-	PrintConsole	bottomScreen;
-	int				fileMax;
-	int				fileNum = 0;
-	int				from = 0;
+	PrintConsole	topScreenLog, topScreenInfo, bottomScreen;
+	int			fileMax;
+	int			fileNum = 0;
+	int			from = 0;
 	Thread			watchdogThread;
 	Handle			playbackFailEvent;
 	struct watchdogInfo	watchdogInfoIn;
 	struct errInfo_t	errInfo;
-	struct playbackInfo_t playbackInfo;
+	struct playbackInfo_t	playbackInfo = { 0 };
 	volatile int		error = 0;
-	struct dirList_t	dirList = {NULL, 0, NULL, 0, NULL};
+	struct dirList_t	dirList = { 0 };
 
 	gfxInitDefault();
-	consoleInit(GFX_TOP, &topScreen);
+	consoleInit(GFX_TOP, &topScreenLog);
+	consoleInit(GFX_TOP, &topScreenInfo);
 	consoleInit(GFX_BOTTOM, &bottomScreen);
+
+	/* Set console sizes. */
+	consoleSetWindow(&topScreenLog, 1, 3, 50, 36);
+	consoleSetWindow(&topScreenInfo, 1, 1, 50, 2);
+
 	consoleSelect(&bottomScreen);
 
 	svcCreateEvent(&playbackFailEvent, RESET_ONESHOT);
@@ -309,7 +318,7 @@ int main(int argc, char **argv)
 	errInfo.failEvent = &playbackFailEvent;
 	errInfo.errstr = NULL;
 
-	watchdogInfoIn.screen = &topScreen;
+	watchdogInfoIn.screen = &topScreenLog;
 	watchdogInfoIn.errInfo = &errInfo;
 	watchdogThread = threadCreate(playbackWatchdog,
 			&watchdogInfoIn, 4 * 1024, 0x20, -2, true);
@@ -362,7 +371,7 @@ int main(int argc, char **argv)
 			break;
 
 #ifdef DEBUG
-		consoleSelect(&topScreen);
+		consoleSelect(&topScreenLog);
 		printf("\rNum: %d, Max: %d, from: %d   ", fileNum, fileMax, from);
 		consoleSelect(&bottomScreen);
 #endif
@@ -377,7 +386,7 @@ int main(int argc, char **argv)
 				if(isPlaying() == false)
 					continue;
 
-				consoleSelect(&topScreen);
+				consoleSelect(&topScreenLog);
 				if(togglePlayback() == true)
 					puts("Paused");
 				else
@@ -389,7 +398,7 @@ int main(int argc, char **argv)
 			/* Show controls */
 			if(kDown & KEY_LEFT)
 			{
-				consoleSelect(&topScreen);
+				consoleSelect(&topScreenLog);
 				showControls();
 				continue;
 			}
@@ -398,7 +407,15 @@ int main(int argc, char **argv)
 			if(kDown & KEY_B)
 			{
 				stopPlayback();
+
+				/* Clear playback information. */
+				consoleSelect(&topScreenInfo);
+				consoleClear();
+				consoleSelect(&topScreenLog);
+				consoleClear();
+
 				changeFile(NULL, &playbackInfo);
+
 				/* If the playback thread is currently playing, it will now
 				 * stop and tell the Watchdog thread to display "Stopped".
 				 */
@@ -518,10 +535,55 @@ int main(int argc, char **argv)
 
 			if(dirList.dirNum < fileNum)
 			{
-				consoleSelect(&topScreen);
+				consoleSelect(&topScreenInfo);
+				consoleClear();
+				consoleSelect(&topScreenLog);
+				consoleClear();
+
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 				continue;
 			}
+		}
+
+		/* After 1000ms, update playback time. */
+		while(osGetTime() - mill > 1000)
+		{
+			consoleSelect(&topScreenInfo);
+			/* Reset cursor position and print status. */
+			printf("\033[0;0H");
+
+			/* Avoid divide by zero. */
+			if(playbackInfo.samples_per_second == 0)
+				break;
+
+			{
+				unsigned hr, min, sec;
+				size_t seconds_played;
+
+				seconds_played = playbackInfo.samples_played / playbackInfo.samples_per_second; 
+
+				hr = (seconds_played/3600); 
+				min = (seconds_played - (3600*hr))/60;
+				sec = (seconds_played -(3600*hr)-(min*60));
+
+				printf("%02d:%02d:%02d", hr, min, sec);
+			}
+
+			if(playbackInfo.samples_total != 0)
+			{
+				unsigned hr, min, sec;
+				size_t seconds_total;
+
+				seconds_total = playbackInfo.samples_total / playbackInfo.samples_per_second; 
+
+				hr = (seconds_total/3600); 
+				min = (seconds_total - (3600*hr))/60;
+				sec = (seconds_total -(3600*hr)-(min*60));
+
+				printf(" %02d:%02d:%02d", hr, min, sec);
+			}
+
+			break;
 		}
 	}
 

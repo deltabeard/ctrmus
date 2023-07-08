@@ -16,6 +16,7 @@ static uint32_t rateWav(void);
 static uint8_t channelWav(void);
 static uint64_t readWav(void* buffer);
 static void exitWav(void);
+static size_t getFileSamplesWav(void);
 
 /**
  * Set decoder parameters for WAV.
@@ -30,6 +31,7 @@ void setWav(struct decoder_fn* decoder)
 	decoder->buffSize = buffSize;
 	decoder->decode = &readWav;
 	decoder->exit = &exitWav;
+	decoder->getFileSamples = &getFileSamplesWav;
 }
 
 /**
@@ -41,6 +43,11 @@ void setWav(struct decoder_fn* decoder)
 int initWav(const char* file)
 {
 	return !drwav_init_file(&wav, file, NULL);
+}
+
+static size_t getFileSamplesWav(void)
+{
+	return wav.totalPCMFrameCount * (size_t)wav.channels;
 }
 
 /**

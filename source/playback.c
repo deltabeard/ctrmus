@@ -53,7 +53,7 @@ bool isPlaying(void)
  */
 void playFile(void* infoIn)
 {
-	struct decoder_fn decoder;
+	struct decoder_fn decoder = { 0 };
 	struct playbackInfo_t* info = infoIn;
 	int16_t*		buffer1 = NULL;
 	int16_t*		buffer2 = NULL;
@@ -116,6 +116,10 @@ void playFile(void* infoIn)
 		goto err;
 	}
 
+	if(decoder.getFileSamples != NULL)
+		info->samples_total = decoder.getFileSamples();
+
+	info->samples_per_second = decoder.rate() * decoder.channels();
 	buffer1 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 	buffer2 = linearAlloc(decoder.buffSize * sizeof(int16_t));
 
@@ -158,6 +162,9 @@ void playFile(void* infoIn)
 		if(waveBuf[0].status == NDSP_WBUF_DONE)
 		{
 			size_t read = (*decoder.decode)(&buffer1[0]);
+			/* The previous block of samples have finished playing,
+			 * so accumulate them here. */
+			info->samples_played += waveBuf[0].nsamples * decoder.channels();
 
 			if(read <= 0)
 			{
@@ -173,6 +180,7 @@ void playFile(void* infoIn)
 		if(waveBuf[1].status == NDSP_WBUF_DONE)
 		{
 			size_t read = (*decoder.decode)(&buffer2[0]);
+			info->samples_played += waveBuf[0].nsamples * decoder.channels();
 
 			if(read <= 0)
 			{
@@ -188,6 +196,9 @@ void playFile(void* infoIn)
 		DSP_FlushDataCache(buffer1, decoder.buffSize * sizeof(int16_t));
 		DSP_FlushDataCache(buffer2, decoder.buffSize * sizeof(int16_t));
 	}
+
+	info->samples_played += waveBuf[0].nsamples * decoder.channels();
+	info->samples_played += waveBuf[0].nsamples * decoder.channels();
 
 	(*decoder.exit)();
 out:
