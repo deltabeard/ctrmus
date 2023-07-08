@@ -3,4 +3,4 @@
 	url = https://github.com/mackron/dr_libs.git
 [submodule "buildtools"]
 	path = buildtools
-	url = https://github.com/Steveice10/buildtools.git
+	url = https://github.com/deltabeard/buildtools.git
