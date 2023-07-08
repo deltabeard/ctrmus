@@ -10,6 +10,13 @@ static vorbis_info		*vi;
 static FILE				*f;
 static const size_t		buffSize = 8 * 4096;
 
+static int initVorbis(const char* file);
+static uint32_t rateVorbis(void);
+static uint8_t channelVorbis(void);
+static uint64_t decodeVorbis(void* buffer);
+static void exitVorbis(void);
+static uint64_t fillVorbisBuffer(char* bufferOut);
+
 /**
  * Set decoder parameters for Vorbis.
  *

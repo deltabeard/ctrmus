@@ -8,17 +8,46 @@
 
 struct decoder_fn
 {
+	/**
+	 * Set decoder parameters.
+	 * \param	decoder Structure to store parameters.
+	 * \return	0 on success, else failure.
+	 */
 	int (* init)(const char* file);
+
+	/**
+	 * Get sampling rate of file.
+	 * \return	Sampling rate.
+	 */
 	uint32_t (* rate)(void);
+
+	/**
+	 * Get number of channels of file.
+	 * \return	Number of channels for opened file.
+	 */
 	uint8_t (* channels)(void);
+
+	/**
+	 * Size of output buffer used in decode().
+	 */
 	size_t buffSize;
+
+	/**
+	 * Fill buffer with decoded samples.
+	 * \param buffer	Output buffer to fill.
+	 * \return		Samples read for each channel.
+	 */
 	uint64_t (* decode)(void*);
+
+	/**
+	 * Free codec resources.
+	 */
 	void (* exit)(void);
 };
 
 struct playbackInfo_t
 {
-	char*				file;
+	char*			file;
 	struct errInfo_t*	errInfo;
 };
 

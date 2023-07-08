@@ -3,7 +3,15 @@
 #include <string.h>
 #include <sidplay/player.h>
 
+extern "C"
+{
 #include "playback.h"
+static int initSid(const char* file);
+static uint32_t rateSid(void);
+static uint8_t channelSid(void);
+static uint64_t readSid(void* buffer);
+static void exitSid(void);
+}
 
 static uint32_t		frequency = 44100;
 static int			channels = SIDEMU_STEREO;
@@ -16,13 +24,6 @@ static int			bitsPerSample = SIDEMU_16BIT;
 
 emuEngine	*myEmuEngine = NULL;
 sidTune		*myTune = NULL;
-
-extern "C" void setSid(struct decoder_fn* decoder);
-extern "C" int initSid(const char* file);
-extern "C" uint32_t rateSid(void);
-extern "C" uint8_t channelSid(void);
-extern "C" uint64_t readSid(void* buffer);
-extern "C" void exitSid(void);
 
 /**
  * Set decoder parameters for SID.

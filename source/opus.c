@@ -8,6 +8,13 @@ static OggOpusFile*		opusFile;
 static const OpusHead*	opusHead;
 static const size_t		buffSize = 32 * 1024;
 
+static int initOpus(const char* file);
+static uint32_t rateOpus(void);
+static uint8_t channelOpus(void);
+static uint64_t decodeOpus(void* buffer);
+static void exitOpus(void);
+static uint64_t fillOpusBuffer(int16_t* bufferOut);
+
 /**
  * Set decoder parameters for Opus.
  *

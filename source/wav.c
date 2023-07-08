@@ -10,6 +10,12 @@ static FILE*		pWav		= NULL;
 static char			header[45];
 static uint8_t		channels;
 
+static int initWav(const char* file);
+static uint32_t rateWav(void);
+static uint8_t channelWav(void);
+static uint64_t readWav(void* buffer);
+static void exitWav(void);
+
 /**
  * Set decoder parameters for WAV.
  *

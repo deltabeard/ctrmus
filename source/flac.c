@@ -7,6 +7,12 @@
 static drflac*		pFlac;
 static const size_t	buffSize = 16 * 1024;
 
+static int initFlac(const char* file);
+static uint32_t rateFlac(void);
+static uint8_t channelFlac(void);
+static uint64_t decodeFlac(void* buffer);
+static void exitFlac(void);
+
 /**
  * Set decoder parameters for flac.
  *

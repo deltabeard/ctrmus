@@ -11,6 +11,12 @@ static mpg123_handle	*mh = NULL;
 static uint32_t			rate;
 static uint8_t			channels;
 
+static int initMp3(const char* file);
+static uint32_t rateMp3(void);
+static uint8_t channelMp3(void);
+static uint64_t decodeMp3(void* buffer);
+static void exitMp3(void);
+
 /**
  * Set decoder parameters for MP3.
  *
