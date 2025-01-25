@@ -545,6 +545,18 @@ int main(int argc, char **argv)
 			}
 		}
 
+		if (kDown & KEY_ZR && fileNum < fileMax) {
+			fileNum += 1;
+			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+			continue;
+		}
+
+		if (kDown & KEY_ZL && fileNum > 0) {
+			fileNum -= 1;
+			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+			continue;
+		}
+
 		/* After 1000ms, update playback time. */
 		while(osGetTime() - mill > 1000)
 		{
