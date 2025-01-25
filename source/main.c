@@ -301,7 +301,6 @@ int main(int argc, char **argv)
 	struct playbackInfo_t	playbackInfo = { 0 };
 	volatile int		error = 0;
 	struct dirList_t	dirList = { 0 };
-	int doneEndOfTrack = 0;
 
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreenLog);
@@ -543,41 +542,51 @@ int main(int argc, char **argv)
 
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 				error = 0;
-				doneEndOfTrack = 0;
 				continue;
 			}
 		}
 
 		if (kDown & KEY_ZR && fileNum < fileMax) {
 			fileNum += 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
-			doneEndOfTrack = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
 			continue;
 		}
 
 		if (kDown & KEY_ZL && fileNum > 0) {
 			fileNum -= 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
-			doneEndOfTrack = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
 			continue;
 		}
 
-		consoleSelect(&topScreenInfo);
-		printf("\033[2;0He %d d %d", error, doneEndOfTrack);
-
 		// play next song automatically
-		if (error != -1 && doneEndOfTrack == 2) doneEndOfTrack = 0;
-		if (error == -1 && doneEndOfTrack == 0) doneEndOfTrack = 1;
-		if (doneEndOfTrack == 1) {
-			doneEndOfTrack = 2;
-			if (fileNum >= fileMax) continue;
-			consoleSelect(&topScreenInfo);
-			printf("playing next");
+		if (error == -1) {
+			if (fileNum >= fileMax) {
+				error = 0;
+				continue;
+			}
 			fileNum += 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
 			continue;
 		}
 
