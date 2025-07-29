@@ -541,8 +541,53 @@ int main(int argc, char **argv)
 				consoleClear();
 
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+				error = 0;
 				continue;
 			}
+		}
+
+		if (kDown & KEY_ZR && fileNum < fileMax) {
+			fileNum += 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
+			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+			error = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
+			continue;
+		}
+
+		if (kDown & KEY_ZL && fileNum > 0) {
+			fileNum -= 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
+			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+			error = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
+			continue;
+		}
+
+		// play next song automatically
+		if (error == -1) {
+			if (fileNum >= fileMax) {
+				error = 0;
+				continue;
+			}
+			fileNum += 1;
+			consoleSelect(&topScreenInfo);
+			consoleClear();
+			consoleSelect(&topScreenLog);
+			consoleClear();
+			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
+			error = 0;
+			consoleSelect(&bottomScreen);
+			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
+			continue;
 		}
 
 		/* After 1000ms, update playback time. */

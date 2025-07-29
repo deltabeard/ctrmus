@@ -48,13 +48,21 @@ Build dependencies:
 - [makerom](https://github.com/3DSGuy/Project_CTR)
 - [bannertool](https://github.com/Steveice10/bannertool)
 - [devkitARM](https://devkitpro.org/wiki/Getting_Started), with the following packages installed:
-  - libctru
-  - 3ds-libmpg123
-  - 3ds-libopus
-  - 3ds-libopusfile
   - 3ds-libogg
-  - 3ds-libvorbisidec
+  - 3ds-libopus
   - 3ds-libsidplay
+  - 3ds-libvorbisidec
+  - 3ds-mpg123
+  - 3ds-opusfile
+  - libctru
+
+Installing packages in MSYS2:
+
+```
+pacman -S libctru 3ds-mpg123 3ds-libopus 3ds-opusfile 3ds-libogg 3ds-libvorbisidec 3ds-libsidplay
+```
+
+Make sure to put `C:\devkitPro\tools\bin` on your PATH.
 
 To build, type `make` in the project folder.
 
