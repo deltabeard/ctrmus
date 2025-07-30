@@ -95,9 +95,7 @@ enum file_types getFileType(const char *file)
 			 * MP3 without ID3 tag, ID3v1 tag is at the end of file, or MP3
 			 * with ID3 tag at the beginning  of the file.
 			 */
-			if((fileSig << 16) == 0xFBFF0000 ||
-					(fileSig << 16) == 0xFAFF0000 ||
-					(fileSig << 8) == 0x33444900)
+			if(isMp3(file) == 0)
 			{
 				file_type = FILE_TYPE_MP3;
 				break;

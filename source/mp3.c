@@ -132,3 +132,60 @@ void exitMp3(void)
 	mpg123_delete(mh);
 	mpg123_exit();
 }
+
+/**
+ * Check if a file is a valid MP3 file.
+ * 
+ * \param path	Path to the MP3 file.
+ * \return		0 if valid MP3, 1 if not valid.
+ */
+int isMp3(const char *path)
+{
+	int err;
+	int result = 1;
+	mpg123_handle *mh = NULL;
+	long rate;
+	int channels, encoding;
+
+	// Initialise the library
+	if (mpg123_init() != MPG123_OK)
+		goto out;
+
+	// Create a decoder handle
+	mh = mpg123_new(NULL, &err);
+	if (!mh)
+		goto exit_init;
+
+	// Try opening the file
+	err = mpg123_open(mh, path);
+	if (err != MPG123_OK)
+		goto exit_handle;
+
+	// Query the decoded format
+	if (mpg123_getformat(mh, &rate, &channels, &encoding) != MPG123_OK)
+		goto close_handle;
+
+	// Parse first frame in file
+	err = mpg123_framebyframe_next(mh);
+	if (err != MPG123_OK)
+	{
+		// If we can't read the first frame, it's not a valid MP3
+		goto close_handle;
+	}
+
+	// All checks passed: valid MP3
+	result = 0;
+
+close_handle:
+	mpg123_close(mh);
+
+exit_handle:
+	mpg123_delete(mh);
+
+exit_init:
+	mpg123_exit();
+
+out:
+	return result;
+}
+
