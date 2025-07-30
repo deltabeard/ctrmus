@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug on Citra/Azahar",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/output/3ds-arm/ctrmus.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "arm-none-eabi-gdb",
+      "miDebuggerArgs": "--silent",
+      "miDebuggerServerAddress": "localhost:24689",
+      "externalConsole": false,
+      "preLaunchTask": "Build 3DS ROM",
+      "targetArchitecture": "arm"
+    }
+  ]
+}
