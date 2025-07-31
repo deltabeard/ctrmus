@@ -141,6 +141,7 @@ void exitMp3(void)
  */
 int isMp3(const char *path)
 {
+#if 0
 	int err;
 	int result = 1;
 	mpg123_handle *mh = NULL;
@@ -155,6 +156,12 @@ int isMp3(const char *path)
 	mh = mpg123_new(NULL, &err);
 	if (!mh)
 		goto exit_init;
+
+	// skip ID3v2 tags rather than parsing them (so tag-only files don’t count as valid mp3)
+	mpg123_param(mh, MPG123_SKIP_ID3V2, 1, 0);
+
+	// limit how many bytes to scan for a frame sync (e.g. 2048 bytes)
+	mpg123_param(mh, MPG123_RESYNC_LIMIT, 2048, 0);
 
 	// Try opening the file
 	err = mpg123_open(mh, path);
@@ -187,5 +194,31 @@ exit_init:
 
 out:
 	return result;
+#else
+    unsigned char buf[4];
+	FILE *f = fopen(path, "rb");
+	int ret = 1;
+
+	if(!f) return 1;
+
+    if(fread(buf, 1, 4, f) < 4)
+		goto out;
+
+    // ID3v2 tag?
+    if(buf[0]=='I' && buf[1]=='D' && buf[2]=='3') {
+		ret = 0;
+		goto out;
+	}
+
+    // MPEG frame sync: 11 one-bits in a row
+    if(buf[0]==0xFF && (buf[1]&0xE0)==0xE0) {
+		ret = 0;
+		goto out;
+	}
+
+out:
+	fclose(f);
+    return ret;
+#endif
 }
 
