@@ -536,7 +536,7 @@ int main(int argc, char **argv)
 				consoleSelect(&topScreenInfo);
 				consoleClear();
 				consoleSelect(&topScreenLog);
-				consoleClear();
+				//consoleClear();
 
 				changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 				error = 0;
@@ -549,7 +549,7 @@ int main(int argc, char **argv)
 			consoleSelect(&topScreenInfo);
 			consoleClear();
 			consoleSelect(&topScreenLog);
-			consoleClear();
+			//consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
 			consoleSelect(&bottomScreen);
@@ -562,7 +562,7 @@ int main(int argc, char **argv)
 			consoleSelect(&topScreenInfo);
 			consoleClear();
 			consoleSelect(&topScreenLog);
-			consoleClear();
+			//consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
 			consoleSelect(&bottomScreen);
@@ -580,7 +580,7 @@ int main(int argc, char **argv)
 			consoleSelect(&topScreenInfo);
 			consoleClear();
 			consoleSelect(&topScreenLog);
-			consoleClear();
+			//consoleClear();
 			changeFile(dirList.files[fileNum - dirList.dirNum - 1], &playbackInfo);
 			error = 0;
 			consoleSelect(&bottomScreen);
