@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <limits.h>
 
 #ifndef ctrmus_playback_h
 #define ctrmus_playback_h
@@ -53,7 +54,7 @@ struct decoder_fn
 
 struct playbackInfo_t
 {
-	char *file;
+	char file[PATH_MAX];
 	struct errInfo_t *errInfo;
 
 	/* If 0, then the duration of file is unavailable. */

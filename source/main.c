@@ -107,12 +107,18 @@ static int changeFile(const char* ep_file, struct playbackInfo_t* playbackInfo)
 		thread = NULL;
 	}
 
+	/* If file is NULL, then only thread termination was requested. */
 	if(ep_file == NULL || playbackInfo == NULL)
 		return 0;
+	
+	//playbackInfo->file = strdup(ep_file);
+	if (memccpy(playbackInfo->file, ep_file, '\0', sizeof(playbackInfo->file)) == NULL)
+	{
+		puts("Error: File path too long\n");
+		return -1;
+	}
 
-	playbackInfo->file = strdup(ep_file);
 	printf("Playing: %s\n", playbackInfo->file);
-
 	playbackInfo->samples_total = 0;
 	playbackInfo->samples_played = 0;
 	playbackInfo->samples_per_second = 0;
@@ -316,7 +322,6 @@ int main(int argc, char **argv)
 	watchdogThread = threadCreate(playbackWatchdog,
 			&watchdogInfoIn, 4 * 1024, 0x20, -2, true);
 
-	playbackInfo.file = NULL;
 	playbackInfo.errInfo = &errInfo;
 
 	chdir(DEFAULT_DIR);

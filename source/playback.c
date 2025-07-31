@@ -208,7 +208,6 @@ out:
 		ndspExit();
 	}
 
-	delete(info->file);
 	linearFree(buffer1);
 	linearFree(buffer2);
 
