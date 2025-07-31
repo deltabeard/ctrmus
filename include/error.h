@@ -19,7 +19,7 @@ struct errInfo_t
 	volatile int*	error;
 
 	/* Extra information regarding error (Must be NULL if unused) */
-	volatile char*	errstr;
+	//volatile char*	errstr;
 
 	/* Event to trigger on error */
 	Handle*			failEvent;

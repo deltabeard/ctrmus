@@ -46,7 +46,7 @@ enum file_types getFileType(const char *file)
 
 	/* Failure opening file */
 	if(ftest == NULL)
-		return -1;
+		return FILE_TYPE_ERROR;
 
 	if(fread(&fileSig, 4, 1, ftest) == 0)
 		goto err;
@@ -87,7 +87,7 @@ enum file_types getFileType(const char *file)
 		// "PSID" or "RSID"
 		case 0x44495350:
 		case 0x44495352:
-			file_type=FILE_TYPE_SID;
+			file_type = FILE_TYPE_SID;
 			break;
 
 		default:

@@ -55,20 +55,14 @@ void playbackWatchdog(void* infoIn)
 
 		if(*info->errInfo->error > 0)
 		{
+			continue;
 			consoleSelect(info->screen);
-			printf("Error %d: %s", *info->errInfo->error,
+			printf("Error %d: %s\n", *info->errInfo->error,
 					ctrmus_strerror(*info->errInfo->error));
-
-			if(info->errInfo->errstr != NULL)
-			{
-				printf(" %s", info->errInfo->errstr);
-				delete(info->errInfo->errstr);
-			}
-
-			printf("\n");
 		}
 		else if (*info->errInfo->error == -1)
 		{
+			continue;
 			/* Used to signify that playback has stopped.
 			 * Not technically an error.
 			 */
@@ -316,7 +310,6 @@ int main(int argc, char **argv)
 	svcCreateEvent(&playbackFailEvent, RESET_ONESHOT);
 	errInfo.error = &error;
 	errInfo.failEvent = &playbackFailEvent;
-	errInfo.errstr = NULL;
 
 	watchdogInfoIn.screen = &topScreenLog;
 	watchdogInfoIn.errInfo = &errInfo;
