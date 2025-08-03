@@ -427,8 +427,8 @@ int main(int argc, char **argv)
 		{
 			fileNum--;
 
-			/* 26 is the maximum number of entries that can be printed */
-			if(fileMax - fileNum > 26 && from != 0)
+			// one line taken up by cwd, other by ../
+			if(fileMax - fileNum > MAX_LIST-2 && from != 0)
 				from--;
 
 			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
@@ -460,9 +460,8 @@ int main(int argc, char **argv)
 
 			fileNum -= skip;
 
-			/* 26 is the maximum number of entries that can be printed */
-			/* TODO: Not using MAX_LIST here? */
-			if(fileMax - fileNum > 26 && from != 0)
+			// one line taken up by cwd, other by ../
+			if(fileMax - fileNum > MAX_LIST-2 && from != 0)
 			{
 				from -= skip;
 				if(from < 0)
@@ -546,6 +545,9 @@ int main(int argc, char **argv)
 
 		if (kDown & KEY_ZR && fileNum < fileMax) {
 			fileNum += 1;
+			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
+					from < fileMax - MAX_LIST)
+				from++;
 			consoleSelect(&topScreenInfo);
 			consoleClear();
 			consoleSelect(&topScreenLog);
@@ -557,8 +559,11 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		if (kDown & KEY_ZL && fileNum > 0) {
+		// don't go to ../
+		if (kDown & KEY_ZL && fileNum > 1) {
 			fileNum -= 1;
+			if(fileMax - fileNum > MAX_LIST-2 && from != 0)
+				from--;
 			consoleSelect(&topScreenInfo);
 			consoleClear();
 			consoleSelect(&topScreenLog);
