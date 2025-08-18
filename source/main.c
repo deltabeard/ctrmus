@@ -410,7 +410,7 @@ int main(int argc, char **argv)
 				consoleSelect(&topScreenInfo);
 				consoleClear();
 				consoleSelect(&topScreenLog);
-				consoleClear();
+				//consoleClear();
 
 				changeFile(NULL, &playbackInfo);
 
