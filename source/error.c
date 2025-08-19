@@ -22,7 +22,7 @@ char* ctrmus_strerror(int err)
 			break;
 
 		case DECODER_INIT_FAIL:
-			error = "Unable to initialised decoder";
+			error = "Unable to initialise decoder";
 			break;
 
 		case FILE_NOT_SUPPORTED:
