@@ -328,7 +328,7 @@ int main(int argc, char **argv)
 	/* position of parent folder in parent directory */
 	int prevPosition[MAX_DIRECTORIES] = {0};
 	int prevFrom[MAX_DIRECTORIES] = {0};
-	/* ensure that all entries are 0 because it must be */
+	/* ensure that all entries are 0 because they must be */
 	memset(prevPosition, 0, MAX_DIRECTORIES);
 	memset(prevFrom, 0, MAX_DIRECTORIES);
 
