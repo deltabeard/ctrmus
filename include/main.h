@@ -15,8 +15,13 @@
 /* Default folder */
 #define DEFAULT_DIR		"sdmc:/"
 
-/* Maximum number of lines that can be displayed */
+/* Maximum number of lines that can be displayed on bottom screen */
 #define	MAX_LIST		28
+/* Arbitrary cap for number of stored parent positions in folder to avoid
+ * unbounded memory consumption. If directories are added exceeding this,
+ * dequeues path closest to root to make space.
+ */
+#define MAX_DIRECTORIES 20
 
 struct watchdogInfo
 {
