@@ -308,7 +308,8 @@ int main(int argc, char **argv)
 	consoleInit(GFX_BOTTOM, &bottomScreen);
 
 	/* Set console sizes. */
-	consoleSetWindow(&topScreenLog, 1, 3, 50, 36);
+	// (y-1) + (height) <= 30 (top screen only fits 30 lines)
+	consoleSetWindow(&topScreenLog, 1, 3, 50, 28);
 	consoleSetWindow(&topScreenInfo, 1, 1, 50, 2);
 
 	consoleSelect(&bottomScreen);
