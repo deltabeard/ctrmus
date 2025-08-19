@@ -325,6 +325,13 @@ int main(int argc, char **argv)
 
 	playbackInfo.errInfo = &errInfo;
 
+	/* position of parent folder in parent directory */
+	int prevPosition[MAX_DIRECTORIES] = {0};
+	int prevFrom[MAX_DIRECTORIES] = {0};
+	/* ensure that all entries are 0 because it must be */
+	memset(prevPosition, 0, MAX_DIRECTORIES);
+	memset(prevFrom, 0, MAX_DIRECTORIES);
+
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
 
@@ -507,8 +514,15 @@ int main(int argc, char **argv)
 			consoleClear();
 			fileMax = getDir(&dirList);
 
-			fileNum = 0;
-			from = 0;
+			fileNum = prevPosition[0];
+			from = prevFrom[0];
+			for (int i=0; i<MAX_DIRECTORIES-1; i++) {
+				prevPosition[i] = prevPosition[i+1];
+				prevFrom[i] = prevFrom[i+1];
+			}
+			/* default to first entry */
+			prevPosition[MAX_DIRECTORIES-1] = 0;
+			prevFrom[MAX_DIRECTORIES-1] = 0;
 
 			if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				err_print("Unable to list directory.");
@@ -523,11 +537,28 @@ int main(int argc, char **argv)
 				chdir(dirList.directories[fileNum - 1]);
 				consoleClear();
 				fileMax = getDir(&dirList);
+
+				int oldFileNum, oldFrom;
+				oldFileNum = fileNum;
+				oldFrom = from;
 				fileNum = 0;
 				from = 0;
-
+				
 				if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
+				{
 					err_print("Unable to list directory.");
+				}
+				else 
+				{
+					/* save old position in folder */
+					for (int i=MAX_DIRECTORIES-1; i>0; i--) {
+						prevPosition[i] = prevPosition[i-1];
+						prevFrom[i] = prevFrom[i-1];
+					}
+					prevPosition[0] = oldFileNum;
+					prevFrom[0] = oldFrom;
+				}
+					
 				continue;
 			}
 
@@ -593,6 +624,13 @@ int main(int argc, char **argv)
 			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
 			continue;
 		}
+
+		if (kDown || kHeld) {
+			PrintConsole* prev = consoleSelect(&topScreenLog);
+			printf("filenum: %d, from: %d\n", fileNum, from);
+			consoleSelect(prev);
+		}
+
 
 		/* After 1000ms, update playback time. */
 		while(osGetTime() - mill > 1000)
