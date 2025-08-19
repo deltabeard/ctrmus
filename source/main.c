@@ -543,12 +543,12 @@ int main(int argc, char **argv)
 				oldFrom = from;
 				fileNum = 0;
 				from = 0;
-				
+
 				if(listDir(from, MAX_LIST, fileNum, dirList) < 0)
 				{
 					err_print("Unable to list directory.");
 				}
-				else 
+				else
 				{
 					/* save old position in folder */
 					for (int i=MAX_DIRECTORIES-1; i>0; i--) {
@@ -558,7 +558,6 @@ int main(int argc, char **argv)
 					prevPosition[0] = oldFileNum;
 					prevFrom[0] = oldFrom;
 				}
-					
 				continue;
 			}
 
@@ -625,11 +624,6 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-		if (kDown || kHeld) {
-			PrintConsole* prev = consoleSelect(&topScreenLog);
-			printf("filenum: %d, from: %d\n", fileNum, from);
-			consoleSelect(prev);
-		}
 
 
 		/* After 1000ms, update playback time. */
