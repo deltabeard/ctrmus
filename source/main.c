@@ -30,7 +30,7 @@ static void showControls(void)
 {
 	printf("Button mappings:\n"
 			"Pause: L+R or L+Up\n"
-			"Stop: L+B\n"
+			"Previous/Next Song: ZL/ZR or L/R\n"
 			"A: Open File\n"
 			"B: Go up folder\n"
 			"Start: Exit\n"
@@ -402,24 +402,24 @@ int main(int argc, char **argv)
 				continue;
 			}
 
-			/* Stop */
-			if(kDown & KEY_B)
-			{
-				stopPlayback();
+			// /* Stop */
+			// if(kDown & KEY_B)
+			// {
+			// 	stopPlayback();
 
-				/* Clear playback information. */
-				consoleSelect(&topScreenInfo);
-				consoleClear();
-				consoleSelect(&topScreenLog);
-				//consoleClear();
+			// 	/* Clear playback information. */
+			// 	consoleSelect(&topScreenInfo);
+			// 	consoleClear();
+			// 	consoleSelect(&topScreenLog);
+			// 	//consoleClear();
 
-				changeFile(NULL, &playbackInfo);
+			// 	changeFile(NULL, &playbackInfo);
 
-				/* If the playback thread is currently playing, it will now
-				 * stop and tell the Watchdog thread to display "Stopped".
-				 */
-				continue;
-			}
+			// 	/* If the playback thread is currently playing, it will now
+			// 	 * stop and tell the Watchdog thread to display "Stopped".
+			// 	 */
+			// 	continue;
+			// }
 		}
 
 		if((kDown & KEY_UP ||
