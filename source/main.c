@@ -302,6 +302,10 @@ int main(int argc, char **argv)
 	volatile int		error = 0;
 	struct dirList_t	dirList = { 0 };
 
+	/* ignore key release of L/R if L+R or L+down was pressed */
+	bool keyLComboPressed = false;
+	bool keyRComboPressed = false;
+
 	gfxInitDefault();
 	consoleInit(GFX_TOP, &topScreenLog);
 	consoleInit(GFX_TOP, &topScreenInfo);
@@ -353,6 +357,7 @@ int main(int argc, char **argv)
 	{
 		u32			kDown;
 		u32			kHeld;
+		u32         kUp;
 		static u64	mill = 0;
 
 		gfxFlushBuffers();
@@ -362,6 +367,7 @@ int main(int argc, char **argv)
 		hidScanInput();
 		kDown = hidKeysDown();
 		kHeld = hidKeysHeld();
+		kUp = hidKeysUp();
 
 		consoleSelect(&bottomScreen);
 
@@ -391,6 +397,11 @@ int main(int argc, char **argv)
 				else
 					puts("Playing");
 
+				keyLComboPressed = true;
+				// distinguish between L+R and L+Up
+				if (KEY_R & kDown) {
+					keyRComboPressed = true;
+				}
 				continue;
 			}
 
@@ -399,6 +410,7 @@ int main(int argc, char **argv)
 			{
 				consoleSelect(&topScreenLog);
 				showControls();
+				keyLComboPressed = true;
 				continue;
 			}
 
@@ -544,7 +556,16 @@ int main(int argc, char **argv)
 			}
 		}
 
-		if (kDown & KEY_ZR && fileNum < fileMax) {
+		// ignore R release if key combo with R used
+		bool keyRActivation = false;
+		if (kUp & KEY_R) {
+			if (!keyRComboPressed) {
+				keyRActivation = true;
+			}
+			keyRComboPressed = false;
+		}
+		bool goToNextFile = (kDown & KEY_ZR) || keyRActivation;
+		if (goToNextFile && fileNum < fileMax) {
 			fileNum += 1;
 			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
 					from < fileMax - MAX_LIST)
@@ -559,9 +580,17 @@ int main(int argc, char **argv)
 			if(listDir(from, MAX_LIST, fileNum, dirList) < 0) err_print("Unable to list directory.");
 			continue;
 		}
-
+		// ignore L release if key combo with L used
+		bool keyLActivation = false;
+		if (kUp & KEY_L) {
+			if (!keyLComboPressed) {
+				keyLActivation = true;
+			}
+			keyLComboPressed = false;
+		}
+		bool goToPrevFile = (kDown & KEY_ZR) || keyLActivation;
 		// don't go to ../
-		if (kDown & KEY_ZL && fileNum > 1) {
+		if (goToPrevFile && fileNum > 1) {
 			fileNum -= 1;
 			if(fileMax - fileNum > MAX_LIST-2 && from != 0)
 				from--;
