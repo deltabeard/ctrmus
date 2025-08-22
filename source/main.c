@@ -288,6 +288,10 @@ err:
 	goto out;
 }
 
+void pausePlay() {
+
+}
+
 int main(int argc, char **argv)
 {
 	PrintConsole	topScreenLog, topScreenInfo, bottomScreen;
@@ -432,6 +436,22 @@ int main(int argc, char **argv)
 			// 	 */
 			// 	continue;
 			// }
+		}
+		// if R is pressed first
+		if ((kHeld & KEY_R) && (kDown & KEY_L))
+		{
+			if(isPlaying() == false)
+				continue;
+
+			consoleSelect(&topScreenLog);
+			if(togglePlayback() == true)
+				puts("Paused");
+			else
+				puts("Playing");
+
+			keyLComboPressed = true;
+			keyRComboPressed = true;
+			continue;
 		}
 
 		if((kDown & KEY_UP ||
@@ -588,7 +608,7 @@ int main(int argc, char **argv)
 			}
 			keyLComboPressed = false;
 		}
-		bool goToPrevFile = (kDown & KEY_ZR) || keyLActivation;
+		bool goToPrevFile = (kDown & KEY_ZL) || keyLActivation;
 		// don't go to ../
 		if (goToPrevFile && fileNum > 1) {
 			fileNum -= 1;
