@@ -288,10 +288,6 @@ err:
 	goto out;
 }
 
-void pausePlay() {
-
-}
-
 int main(int argc, char **argv)
 {
 	PrintConsole	topScreenLog, topScreenInfo, bottomScreen;
@@ -417,25 +413,6 @@ int main(int argc, char **argv)
 				keyLComboPressed = true;
 				continue;
 			}
-
-			// /* Stop */
-			// if(kDown & KEY_B)
-			// {
-			// 	stopPlayback();
-
-			// 	/* Clear playback information. */
-			// 	consoleSelect(&topScreenInfo);
-			// 	consoleClear();
-			// 	consoleSelect(&topScreenLog);
-			// 	//consoleClear();
-
-			// 	changeFile(NULL, &playbackInfo);
-
-			// 	/* If the playback thread is currently playing, it will now
-			// 	 * stop and tell the Watchdog thread to display "Stopped".
-			// 	 */
-			// 	continue;
-			// }
 		}
 		// if R is pressed first
 		if ((kHeld & KEY_R) && (kDown & KEY_L))
