@@ -328,9 +328,7 @@ int main(int argc, char **argv)
 	/* position of parent folder in parent directory */
 	int prevPosition[MAX_DIRECTORIES] = {0};
 	int prevFrom[MAX_DIRECTORIES] = {0};
-	/* ensure that all entries are 0 because they must be */
-	memset(prevPosition, 0, MAX_DIRECTORIES);
-	memset(prevFrom, 0, MAX_DIRECTORIES);
+	int oldFileNum, oldFrom;
 
 	chdir(DEFAULT_DIR);
 	chdir("MUSIC");
@@ -538,7 +536,6 @@ int main(int argc, char **argv)
 				consoleClear();
 				fileMax = getDir(&dirList);
 
-				int oldFileNum, oldFrom;
 				oldFileNum = fileNum;
 				oldFrom = from;
 				fileNum = 0;
@@ -624,8 +621,6 @@ int main(int argc, char **argv)
 			continue;
 		}
 
-
-
 		/* After 1000ms, update playback time. */
 		while(osGetTime() - mill > 1000)
 		{
@@ -693,4 +688,3 @@ err:
 
 	goto out;
 }
-
