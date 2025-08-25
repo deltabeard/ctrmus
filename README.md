@@ -13,7 +13,7 @@ The latest 3DSX/CIA/3DS download can be found on the <a href="https://github.com
 ## Controls
 L+R or L+Up: Pause
 
-L+B: Stop
+ZL/ZR or L/R: Previous/Next Song
 
 L+Left: Show Controls
 
