@@ -42,7 +42,7 @@ jobs:
       - name: Install makerom & bannertool (Linux x64)
         run: |
          MAKEROM_VER=makerom-v0.18.4
-         BANNERP_URL="https://github.com/Epicpkmn11/bannertool/releases/download/1.2.2/bannertool.zip"
+         BANNERP_URL="https://github.com/Epicpkmn11/bannertool/releases/download/v1.2.2/bannertool.zip"
          set -euxo pipefail
          mkdir -p /opt/devkitpro/tools/bin
          curl -L "https://github.com/3DSGuy/Project_CTR/releases/download/${MAKEROM_VER}/${MAKEROM_VER}-ubuntu_x86_64.zip" -o /tmp/makerom.zip
