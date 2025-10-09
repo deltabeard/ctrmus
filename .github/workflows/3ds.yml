@@ -1,0 +1,54 @@
+name: Build (3DS)
+
+on:
+  push:
+    branches: [ master, actions ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    # Build inside the official devkitPro image (has dkp-pacman & toolchains preconfigured)
+    container:
+      image: devkitpro/devkitarm:latest
+      options: --user root
+
+    env:
+      DEVKITPRO: /opt/devkitpro
+      DEVKITARM: /opt/devkitpro/devkitARM
+      PATH: /opt/devkitpro/tools/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install makerom & bannertool (Linux x64)
+        run: |
+         MAKEROM_VER=makerom-v0.18.4
+         BANNERP_URL="https://github.com/Epicpkmn11/bannertool/releases/download/v1.2.2/bannertool.zip"
+         set -euxo pipefail
+         mkdir -p /opt/devkitpro/tools/bin
+         curl -L "https://github.com/3DSGuy/Project_CTR/releases/download/${MAKEROM_VER}/${MAKEROM_VER}-ubuntu_x86_64.zip" -o /tmp/makerom.zip
+         unzip -j /tmp/makerom.zip -d /opt/devkitpro/tools/bin
+         chmod +x /opt/devkitpro/tools/bin/makerom
+         curl -L "$BANNERP_URL" -o /tmp/bannertool.zip
+         unzip -p /tmp/bannertool.zip 'linux-x86_64/bannertool' > /opt/devkitpro/tools/bin/bannertool
+         chmod +x /opt/devkitpro/tools/bin/bannertool
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctrmus-build
+          path: output
+          if-no-files-found: warn
