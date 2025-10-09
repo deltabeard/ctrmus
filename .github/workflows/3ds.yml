@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        shell: bash
+
     # Build inside the official devkitPro image (has dkp-pacman & toolchains preconfigured)
     container:
       image: devkitpro/devkitarm:latest
