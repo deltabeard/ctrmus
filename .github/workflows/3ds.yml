@@ -49,7 +49,7 @@ jobs:
          unzip -j /tmp/makerom.zip -d /opt/devkitpro/tools/bin
          chmod +x /opt/devkitpro/tools/bin/makerom
          curl -L "$BANNERP_URL" -o /tmp/bannertool.zip
-         unzip -j /tmp/bannertool.zip -d /opt/devkitpro/tools/bin
+         unzip -p /tmp/bannertool.zip 'linux-x86_64/bannertool' > /opt/devkitpro/tools/bin/bannertool
          chmod +x /opt/devkitpro/tools/bin/bannertool
 
       - name: Build
