@@ -139,7 +139,7 @@ static int cmpstringp(const void *p1, const void *p2)
 }
 
 /**
- * Store the list of files and folders in current director to an array.
+ * Store the list of files and folders in current directory to an array.
  */
 static int getDir(struct dirList_t* dirList)
 {
@@ -589,7 +589,8 @@ int main(int argc, char **argv)
 			keyRComboPressed = false;
 		}
 		bool goToNextFile = (kDown & KEY_ZR) || keyRActivation;
-		if (goToNextFile && fileNum < fileMax) {
+		// check that next entry is a file
+		if (goToNextFile && fileNum < fileMax && dirList.dirNum < fileNum+1) {
 			fileNum += 1;
 			if(fileNum >= MAX_LIST && fileMax - fileNum >= 0 &&
 					from < fileMax - MAX_LIST)
@@ -613,8 +614,8 @@ int main(int argc, char **argv)
 			keyLComboPressed = false;
 		}
 		bool goToPrevFile = (kDown & KEY_ZL) || keyLActivation;
-		// don't go to ../
-		if (goToPrevFile && fileNum > 1) {
+		// don't go to ../ and check that previous entry is a file
+		if (goToPrevFile && fileNum > 1 && dirList.dirNum < fileNum-1) {
 			fileNum -= 1;
 			if(fileMax - fileNum > MAX_LIST-2 && from != 0)
 				from--;
@@ -631,7 +632,8 @@ int main(int argc, char **argv)
 
 		// play next song automatically
 		if (error == -1) {
-			if (fileNum >= fileMax) {
+			// don't try to play folders
+			if (fileNum >= fileMax || dirList.dirNum >= fileNum) {
 				error = 0;
 				continue;
 			}
