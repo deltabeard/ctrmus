@@ -2,7 +2,7 @@
 
 # ctrmus: a music player for the Nintendo 3DS
 
-The latest 3DSX/CIA/3DS download can be found on the <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, or by scanning <a href="https://zxing.org/w/chart?cht=qr&chs=350x350&chld=M&choe=UTF-8&chl=https%3A%2F%2Fgithub.com%2Fdeltabeard%2Fctrmus%2Freleases%2Fdownload%2Fv0.5.1%2Fctrmus.cia">this QR code</a>.
+The latest 3DSX/CIA/3DS download can be found on the <a href="https://github.com/deltabeard/ctrmus/releases">releases</a> page, or by scanning <a href="https://zxing.org/w/chart?cht=qr&chs=350x350&chld=M&choe=UTF-8&chl=https%3A%2F%2Fgithub.com%2Fdeltabeard%2Fctrmus%2Freleases%2Fdownload%2Fv0.5.3%2Fctrmus.cia">this QR code</a>.
 
 ## Features
 * Plays PCM WAV, AIFF, FLAC, Opus, Vorbis and MP3 files.
